@@ -1283,3 +1283,155 @@ class Solution {
 
 ```
 
+## 678 有效的括号字符串
+
+### 题目大意
+
+给定一个只包含三种字符的字符串：`（ `，`）` 和 `*`，写一个函数来检验这个字符串是否为有效字符串。
+
+### 解题思路
+
+动态规划
+
+- dp数组 `dp[i][j]`表示字符串s从下标i到j的字串是否为有效的括号字符串
+
+- 边界条件 1。当字串长度为1时，只有当字符是 * ，才为有效
+
+  2。当字串长度为2时， 有4种情况， ① （） ② （*  ③  *） ④ **
+
+- 动态转移方程
+
+Ⅰ。 如果s[i]和s[j] 分别为左括号和右括号，也可以为 *， 则当dp[i + 1] [j - 1] = true时，`dp[i][j] = true`
+
+Ⅱ。如果存在dp[i] [ k] 和dp[k + 1] [ j] 都为true，则dp[i] [ j]  = true
+
+- 最终答案 **dp[0] [n - 1]**
+
+### 代码
+
+```java
+class Solution {
+    public boolean checkValidString(String s) {
+        int n = s.length();
+        boolean[][] dp = new boolean[n][n];
+        for (int i = 0; i < n; i++) {
+            if (s.charAt(i) == '*') {
+                dp[i][i] = true;
+            }
+        }
+        for (int i = 1; i < n; i++) {
+            char c1 = s.charAt(i - 1), c2 = s.charAt(i);
+            dp[i - 1][i] = (c1 == '(' || c1 == '*') && (c2 == ')' || c2 == '*');
+        }
+        for (int i = n - 3; i >= 0; i--) {
+            char c1 = s.charAt(i);
+            for (int j = i + 2; j < n; j++) {
+                char c2 = s.charAt(j);
+                if ((c1 == '(' || c1 == '*') && (c2 == ')' || c2 == '*')) {
+                    dp[i][j] = dp[i + 1][j - 1];
+                }
+                for (int k = i; k < j && !dp[i][j]; k++) {
+                    dp[i][j] = dp[i][k] && dp[k + 1][j];
+                }
+            }
+        }
+        return dp[0][n - 1];
+    }
+}`
+```
+
+
+
+## 42. 接雨水
+
+### 题目大意
+
+给定 `n` 个非负整数表示每个宽度为 `1` 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。
+
+<img src="E:\实习\Java_docs\pics\image-20211008181928571.png" alt="image-20211008181928571" style="zoom:67%;" />
+
+### 代码
+
+```java
+class Solution {
+    public int trap(int[] height) {
+        if(height.length <= 1){
+            return 0;
+        }
+
+        int max_height = 0;
+        int max_height_index = 0;
+
+        for(int i = 0; i < height.length; i++){
+            int h = height[i];
+            if(h > max_height){
+                max_height = h;
+                max_height_index = i;
+            }
+        }
+
+        int area = 0;
+
+        int temp = height[0];
+        for(int i = 0; i < max_height_index; i++){
+            if(height[i] > temp){
+                temp = height[i];
+            }
+            else{
+                area = area + (temp - height[i]);
+            }
+        }
+
+        temp = height[height.length - 1];
+        for(int i = height.length -1; i > max_height_index; i--){
+            if(height[i] > temp){
+                temp = height[i];
+            }
+            else{
+                area = area + (temp - height[i]);
+            }
+        }
+        return area;
+    }
+}
+```
+
+```java
+class MyQueue {
+    private Stack<Integer> a;// 输入栈
+    private Stack<Integer> b;// 输出栈
+    
+    public MyQueue() {
+        a = new Stack<>();
+        b = new Stack<>();
+    }
+    
+    public void push(int x) {
+        a.push(x);
+    }
+    
+    public int pop() {
+        // 如果b栈为空，则将a栈全部弹出并压入b栈中，然后b.pop()
+        if(b.isEmpty()){
+            while(!a.isEmpty()){
+                b.push(a.pop());
+            }
+        }
+        return b.pop();
+    }
+    
+    public int peek() {
+        if(b.isEmpty()){
+            while(!a.isEmpty()){
+                b.push(a.pop());
+            }
+        }
+        return b.peek();
+    }
+    
+    public boolean empty() {
+        return a.isEmpty() && b.isEmpty();
+    }
+}
+```
+
