@@ -476,9 +476,186 @@ public class UserServiceImpl implements UserService{
 
 
 
+## BeanFactory 和 ApplicationContext 的不同点
 
+### BeanFactory接口
 
+这是一个用来访问Spring容器的root接口，要访问Spring容器，我们将使用Spring依赖注入功能，使用BeanFactory接口和它的子接口特性：
 
+- **Bean的实例化、串联**   BeanFactory 的实现是使用懒加载的方式，这意味着 beans 只有在我们通过 getBean() 方法直接调用它们时才进行实例化 实现 BeanFactory 最常用的 API 是 XMLBeanFactory 这里是如何通过 BeanFactory 获取一个 bean 的例子：
+
+```java
+public class HelloWorldApp{
+    XmlBeanFactory factory = new XmlBeanFactory(new ClassPathResource("beans.xml"));
+    HelloWorld obj = (HelloWorld)factory.getBean("helloWorld");
+    obj.getMessage();
+}
+```
+
+### ApplicationContext接口
+
+ApplicationContext是Spring应用程序中的中央接口， 用于向应用程序提供配置信息 它继承了BeanFactory接口，所以ApplicationContext包含BeanFactory的所有功能以及更多功能 。它的主要功能是支持大型的业务应用的创建 **特性：** 
+
+- Bean instantiation/wiring
+- Bean的实例化/串联
+- 自动的BeanPostProcessor注册
+- 自动的BeanFactoryPostProcessor注册
+- 方便的MessageSource访问
+
+- **ApplicationEvent 的发布 与 BeanFactory 懒加载的方式不同，它是预加载，所以，每一个 bean 都在 ApplicationContext 启动之后实例化 **
+
+```java
+public class HelloWorldApp{ 
+   public static void main(String[] args) { 
+      ApplicationContext context=new ClassPathXmlApplicationContext("beans.xml"); 
+      HelloWorld obj = (HelloWorld) context.getBean("helloWorld");    
+      obj.getMessage();    
+   }
+}
+```
+
+> ApplicationContext 包含 BeanFactory 的所有特性，通常推荐使用前者。
+
+## 拦截器
+
+### HandlerInterceptor
+
+通常可以通过实现HandlerInterceptor接口进行自定义拦截器的定义。
+
+```java
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
+
+public class TestInterceptor implements HandlerInterceptor {
+    @Override
+    public void afterCompletion(HttpServletRequest request,
+								HttpServletResponse response, Object handler, Exception ex)
+            throws Exception {
+		// afterCompletion方法在控制器的处理请求方法执行完成后执行，即视图渲染结束之后执行
+        System.out.println(" ======= >>>>  afterCompletion 方法执行");
+
+    }
+
+    @Override
+    public void postHandle(HttpServletRequest request,
+            HttpServletResponse response, Object handler,
+            ModelAndView modelAndView) throws Exception {
+		// postHandle方法在控制器的处理请求方法调用之后，解析视图之前执行
+		System.out.println(" ======= >>>>  postHandle   方法执行");
+    }
+
+    @Override
+    public boolean preHandle(HttpServletRequest request,
+            HttpServletResponse response, Object handler) throws Exception {
+		// preHandle方法在控制器的处理请求方法调用之后，解析视图之前执行
+		System.out.println(" ======= >>>>  preHandle   方法执行");
+        return false;
+    }
+}
+```
+
+在上述拦截器的定义实现了HandlerInterceptor接口：
+
+- **preHandle方法**： 该方法在控制器的处理请求方法前执行，其返回值表示是否中断后续操作，返回true表示继续向下执行，返回false表示中断后续操作。
+- **postHandle方法**： 该方法在控制器的处理请求方法调用之后、解析视图之前执行，可以通过此方法对请求域中的模型和视图做进一步的修改。
+- **afterCompletion方法**： 该方法在控制器的处理请求方法执行完成后执行，即视图渲染结束后执行，可以通过此方法实现一些资源清理、记录日志信息等工作。
+
+### 拦截器的配置
+
+#### XML方式
+
+```xml
+<!-- 配置拦截器 -->
+<mvc:interceptors>
+    <!-- 配置一个全局拦截器，拦截所有请求 -->
+    <bean class="interceptor.TestInterceptor" /> 
+    <mvc:interceptor>
+        <!-- 配置拦截器作用的路径 -->
+        <mvc:mapping path="/**" />
+        <!-- 配置不需要拦截作用的路径 -->
+        <mvc:exclude-mapping path="" />
+        <!-- 定义<mvc:interceptor>元素中，表示匹配指定路径的请求才进行拦截 -->
+        <bean class="interceptor.Interceptor1" />
+    </mvc:interceptor>
+    <mvc:interceptor>
+        <!-- 配置拦截器作用的路径 -->
+        <mvc:mapping path="/gotoTest" />
+        <!-- 定义在<mvc: interceptor>元素中，表示匹配指定路径的请求才进行拦截 -->
+        <bean class="interceptor.Interceptor2" />
+    </mvc:interceptor>
+</mvc:interceptors>
+```
+
+#### 注解方式
+
+```java
+@Configuration
+public class TestConfiguration implements WebMvcConfigurer {
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new TestInterceptor()).addPathPatterns("/app/*");
+    }
+}
+```
+
+### 单个拦截器的执行过程
+
+运行程序时，拦截器的执行时是有一定顺序的，该顺序与配置文件中所定义的拦截的顺序相关。
+
+![image-20211203150303610](E:\实习\Java_docs\pics\image-20211203150303610.png)
+
+程序首先执行拦截器类中的preHandle（）方法，如果该方法返回的是true， 则程序会继续向下执行处理器中的方法，否则不再向下执行； 在业务控制类Controller处理完请求后，会执行postHandle（）方法，而后会通过DispathcerServlet向客户端返回响应；在DispathcherServlet处理完请求后，才会执行afterCompletion（）方法。
+
+### 多个拦截器的执行流程
+
+当多个拦截器同时工作时，它们的preHandle()方法会按照配置文件中拦截器的配置顺序执行，而它们的postHandle()方法和afterCompletion()方法则会按照配置顺序的反序执行
+
+### 预备知识
+
+#### BeanDefinition
+
+BeanDefinition是用来描述一个Bean的，直译过来就是Bean的定义。可以看到接口定义了各种方法来描述Bean的各种属性。Spring容器在初始化Bean的时候，不是直接从配置文件到Bean的，而是从配置文件解析为BeanDefinition，然后根据BeanDefinition实例化Bean。
+
+#### BeanFactoryPostProcessor
+
+针对BeanFactory的后置处理器。接口只有一个方法，入参就是beanFactory。在postProcessBeanFactory()方法中可以对beanFactory进行各种修改。这是Spring对外提供的修改beanFactory的机会。实现了这个接口的类会在ApplicationContext实例化的过程中被调用，实现修改。
+
+```java
+@FuncationalInterface
+public interface BeanFactoryPostProcessor{
+    void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
+}
+```
+
+#### BeanPostProcessor
+
+针对Bean的后置处理器。这是Spring对外提供的修改已实例化bean的机会。在bean初始化前、后各有一个回调方法，默认是不做任何操作，可以实现此接口，然后做自己想要的操作。
+
+后置处理器机制在Spring中使用非常广泛。熟知的AOP就是利用了这个机制。
+
+```java
+public interface BeanPostProcessor {
+    @Nullable
+    default Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        return bean;
+    }
+
+    @Nullable
+    default Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        return bean;
+    }
+}
+```
+
+### 监听器引导初始化Spring容器
+
+ServletContext初始化完成后，通知监听器。ContextLoaderListener进行Spring容器的初始化操作。主要逻辑在`COntextLoader`的`initWebApplicationContext()`方法完成。
+
+<img src="E:\实习\Java_docs\pics\image-20211203125407398.png" alt="image-20211203125407398" style="zoom:80%;" />
+
+#### 获取容器类
 
 
 
@@ -552,7 +729,13 @@ public OneService getService(status) {
 - `Service`： 对应服务层，主要涉及一些复杂的逻辑，需要用到Dao层。
 - `Controller`: 对应Spring MVC控制层，主要接收用户请求并调用Service层返回数据给前端。
 
-## Spring管理事务的方式有几种
+
+
+
+
+## Spring的事务实现原理和传播机制
+
+[美团二面：Spring的@Transactional如何实现的？ - 掘金 (juejin.cn)](https://juejin.cn/post/6987924251751743518#comment)
 
 1. 编程式事务，在代码中硬编码（不推荐使用）
 2. 声明式事务，在配置文件中配置（推荐使用）
@@ -560,7 +743,21 @@ public OneService getService(status) {
 **声明式事务又分为两种：**
 
 1. 基于XML的声明式事务
-2. 基于注解的声明式事务
+2. 基于注解`@Transactional`的声明式事务
+
+### @Transactional注解
+
+`@Transactional`是spring中声明式事务管理的注解配置方式，`@Transactional`注解可以帮助我们把事务开启、提交或者回滚的操作，通过aop的方式进行管理。
+
+通过`Transactional`注解就能让spring为我们管理事务，免去了重复的事务管理逻辑，减少对业务代码的侵入。
+
+![image-20211202225411976](E:\实习\Java_docs\pics\image-20211202225411976.png)
+
+实现@Transactional原理是基于spring aop，aop又是动态代理模式的实现
+
+
+
+
 
 ## Spring事务中的隔离级别有哪几种
 
@@ -610,3 +807,334 @@ Spring默认的创建Bean的作用域就是单例，即每个Spring容器中只�
 
 在SpringMVC中，当存在多个拦截器（HandlerInterceptor）的时候，所有的拦截器就构成了一条拦截器链。SpringMVC中使用HandlerExecutionChain类来将所有的拦截器组装在一起。
 
+## JdbcTemplate常用方法
+
+`JdbcTemplate`是`Spring JDBC`的核心类，借助该类提供的方法可以很方便的实现数据的增删改查。
+
+`Spring`对数据库的操作在`jdbc`上面做了深层次的封装，使用spring的注入功能，可以把`DataSource`注册到`JdbcTemplate`之中。
+
+其全限定命名为`org.springframework.jdbc.core.JdbcTemplate`。要使用`JdbcTemlate`还需一个这个包包含了事务和异常控制
+
+### JdbcTemplate主要提供以下五类方法：
+
+1.  **execute方法**：可以用于执行任何SQL语句，一般用于执行DDL语句；
+2.  **update方法及batchUpdate方法**：`update`方法用于执行新增、修改、删除等语句；`batchUpdate`方法用于执行批处理相关语句；
+3.  **query方法及queryForXXX方法**：用于执行查询相关语句；
+4.  **call方法**：用于执行存储过程、函数相关语句。
+
+### xml中的配置
+
+```xml
+<!-- 扫描 -->
+<context:component-scan base-package="com.zzj.*"></context:component-scan>
+
+<!-- 不属于自己工程的对象用bean来配置 -->
+<!-- 配置数据库连接池 -->
+<bean id="dataSource" class="com.zaxxer.hikari.HikariDataSource" destroy-method="close" p:username="root" p:password="qw13579wq">
+    <property name="driverClassName" value="com.mysql.jdbc.Driver"></property>
+    <property name="jdbcUrl" value="jdbc:mysql://127.0.0.1:3306/test"></property>
+</bean>
+
+<!-- 配置jdbcTemplate -->
+<bean class="org.springframework.jdbc.core.JdbcTemplate" p:dataSource-ref="dataSource"></bean>
+```
+
+```java
+package com.zzj.vo;
+
+public class UserInfo {
+
+    private int id;
+    private String userName;
+    private String password;
+
+    // getter and setter
+
+    @Override
+    public String toString() {
+        return "UserInfo [id=" + id + ", userName=" + userName + ", password=" + password + "]";
+    }
+    
+}
+```
+
+```java
+@Repository
+public class UserInfoDao {
+
+    @Autowired
+        //从容器中自动扫描获取jdbcTemplate
+    private JdbcTemplate jdbcTemplate;
+
+        //update()实现增加数据
+    public boolean insert(int id,String userName,String password){
+        String sql = "insert into user_info values (?,?,?)";
+        return jdbcTemplate.update(sql,id,userName,password)>0;
+    }
+    
+    //update()实现修改
+    public boolean update(int id,String userName,String password){
+        String sql = "update user_info set user_name=?,password=? where id=?";
+        return jdbcTemplate.update(sql,userName,password,id)>0;
+    } 
+    
+    //update()实现删除
+    public boolean delete(int id){
+        String sql = "delete from user_info where id=?";
+        return jdbcTemplate.update(sql,id)>0;
+    }
+
+}
+```
+
+## autowired作用
+
+- `@Autowired`: 自动装配，默认按照Bean的类型进行装配，默认情况下它要求依赖对象必须存在，如果允许null值，可以设置它的required属性为false
+
+- `@Resource`：与`@Autowired`类似，但是是按照名称进行装配，当找不到与名称匹配的Bean时才按照类型进行装配，这是JDK的注解，如果没有指定name属性，当注解标注在字段上，即默认取字段的名称作为bean名称寻找依赖对象，当注解标注在属性的setter方法上，即默认取属性名作为bean名称寻找依赖对象。
+- @Bean：方法上的注解，用于产生一个Bean，然后交由Spring管理
+- @Component：表示一个组件对象，加上了该注解就能实现自动装配，默认的Bean的id为使用小驼峰命名法的类
+
+## Bean的作用域和生命周期
+
+### Bean作用域
+
+`<bean>`中的`scope`可以指定的作用域如下：
+
+- `singleton`：默认作用域，在`Spring`容器只有一个`Bean`实例
+- `prototype`：每次获取`Bean`都会返回一个新的实例
+- `request`：在一次`HTTP`请求中只返回一个`Bean`实例，不同`HTTP`请求返回不同的`Bean`实例，仅在`Spring Web`应用程序上下文使用
+- `session`：在一个`HTTP Session`中，容器将返回同一个`Bean`实例，仅在`Spring Web`应用程序上下文中使用
+- `application`：为每个`ServletContext`对象创建一个实例，即同一个应用共享一个`Bean`实例，仅在`Spring Web`应用程序上下文使用
+- `websocket`：为每个`WebSocket`对象创建一个`Bean`实例，仅在`Spring Web`应用程序上下文使用
+
+### Bean生命周期
+
+`Spring`可以管理作用域为`singleton`的生命周期，在此作用域下`Spring`能精确知道`Bean`何时被创建，何时初始化完成以及何时被摧毁。`Bean`的整个生命周期如下：
+
+1. 实例化`Bean`
+
+2. 进行依赖注入
+
+3. 如果`Bean`实现了`BeanNameAware`，调用`setBeanName`
+
+4. 如果`Bean`实现了`BeanFactoryAware`，调用`setBeanFactory`
+
+5. 如果`Bean`实现了`ApplicationContextAware`，调用`setApplicationContext`
+
+6. 如果`Bean`实现了`BeanPostProcessor`，调用`postProcessBeforeInitialization`
+
+7. 如果`Bean`实现了`InitializingBean`，调用`afterPropertiesSet`
+
+8. 如果配置文件配置了`init-method`属性，调用该方法
+
+9. 如果实现了`BeanPostProcessor`，调用`postProcessAfterInitialization`，注意接口与上面的相同但是方法不一样
+
+10. 不需要时进入销毁阶段
+
+11. 如果`Bean`实现了`DisposableBean`，调用`destroy`如果配置文件配置了`destroy-method`，调用该方法
+
+    
+
+```java
+public class TestBean implements BeanNameAware, BeanFactoryAware, ApplicationContextAware, BeanPostProcessor, DisposableBean {
+    public TestBean() {
+        System.out.println("调用构造方法");
+    }
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        System.out.println("调用BeanFactoryAware的setBeanFactory方法");
+    }
+
+    @Override
+    public void setBeanName(String name) {
+        System.out.println("调用BeanNameAware的setBeanName方法");
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        System.out.println("调用ApplicationContextAware的setApplicationContext方法");
+    }
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        System.out.println("调用BeanPostProcessor的postProcessBeforeInitialization");
+        return null;
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        System.out.println("调用BeanPostProcessor的postProcessAfterInitialization");
+        return null;
+    }
+
+    public void initMethod() {
+        System.out.println("调用XML配置中的init-method");
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        System.out.println("调用DisposableBean的destroy方法");
+    }
+
+    public void destroyMethod(){
+        System.out.println("调用XML配置的destroy-method");
+    }
+}
+```
+
+配置文件如下，指定了`init-method`以及`destroy-method`：
+
+```xml
+<bean id="testBean" class="TestBean" init-method="initMethod" destroy-method="destroyMethod"/>
+复制代码
+```
+
+测试：
+
+```java
+public static void main(String[] args) {
+    ConfigurableApplicationContext context = new FileSystemXmlApplicationContext("classpath:applicationContext.xml");
+    TestBean test = (TestBean) context.getBean("testBean");
+    ((BeanDefinitionRegistry) context.getBeanFactory()).removeBeanDefinition("testBean");
+}
+```
+
+输出：
+
+![image-20211203160732594](E:\实习\Java_docs\pics\image-20211203160732594.png)
+
+如果没有最后一行的手动删除`Bean`定义是不会看见最后两行的输出的
+
+## Spring如何解决循环依赖
+
+![image-20211203162917823](E:\实习\Java_docs\pics\image-20211203162917823.png)
+
+```java
+public class A{
+    private B b;
+}
+public class B{
+    private A a;
+}
+**********************
+<bean id="beanA" class="xyz.coolblog.BeanA">
+    <property name="beanB" ref="beanB"/>
+</bean>
+<bean id="beanB" class="xyz.coolblog.BeanB">
+    <property name="beanA" ref="beanA"/>
+</bean>
+```
+
+IOC 按照上面所示的 <bean> 配置，实例化 A 的时候发现 A 依赖于 B 于是去实例化 B（此时 A 创建未结束，处于创建中的状态），而发现 B 又依赖于 A ，于是就这样循环下去，最终导致 OOM
+
+### 循环依赖发生的时机
+
+> Bean实例化主要分为三步：
+
+<img src="E:\实习\Java_docs\pics\image-20211203163436558.png" alt="image-20211203163436558" style="zoom:80%;" />
+
+问题出现在：第一步和第二步的过程中，也就是填充属性 / 方法的过程中
+
+### Spring如何解决的
+
+- Spring为了解决单例的循环依赖问题，使用了三级缓存，递归调用时发现Bean还在创建中即为循环依赖。
+- 单例模式的 Bean 保存在如下的数据结构中：
+
+```java
+/** 一级缓存：用于存放完全初始化好的 bean **/
+private final Map<String, Object> singletonObjects = new ConcurrentHash<String, Object>(256);
+/** 二级缓存：存放原始的 bean 对象（尚未填充属性），用于解决循环依赖 */
+private final Map<String, Object> earlySingletonObjects = new HashMap<String, Object>(16);
+/** 三级缓存：存放 bean 工厂对象，用于解决循环依赖 */
+private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<String, ObjectFactory<?>>(16);
+/**
+bean 的获取过程：先从一级获取，失败再从二级、三级里面获取
+
+创建中状态：是指对象已经 new 出来了但是所有的属性均为 null 等待被 init
+**/
+```
+
+检测循环依赖的过程如下：
+
+- A创建过程中需要B，于是**A将自己放到三级缓存中**，去实例化B
+- B实例化的时候发现需要A，于是B先查一级缓存，没有，再查二级缓存，还是没有，再查三级缓存，找到A
+  - **然后把三级缓存里面的这个A放到二级缓存里面，并删除三级缓存里的A**
+  - B顺利初始化后，将自己放到**一级缓存**中（此时B里面的A依然时创建中状态）
+- 然后回来接着创建A，此时B已经创建结束，直接从一级缓存里面拿到B，然后完成创建，**并将自己放到一级缓存里面**。
+
+### 一级缓存能解决吗？
+
+<img src="E:\实习\Java_docs\pics\image-20211203193529311.png" alt="image-20211203193529311" style="zoom:85%;" />
+
+- 因为 A 的成品创建依赖于 B，B的成品创建又依赖于 A，当需要补全B的属性时 A 还是没有创建完，所以会出现死循环。
+
+### 二级缓存能解决吗
+
+<img src="E:\实习\Java_docs\pics\image-20211203193613101.png" alt="image-20211203193613101" style="zoom:85%;" />
+
+- 有了二级缓存其实这个事处理起来就容易了，一个缓存用于存放成品对象，另外一个缓存用于存放半成品对象。
+- A在创建半成品对象后存放到缓存中，接下来补充A对象中依赖B的属性。
+- B 继续创建，创建的半成品同样放到缓存中，在补充对象的 A 属性时，可以从半成品缓存中获取，现在 B 就是一个完整对象了，而接下来像是递归操作一样 A 也是一个完整对象了。
+
+
+
+==三级缓存==
+
+有了二级缓存都能解决 Spring 依赖了，怎么要有三级缓存呢。其实我们在前面分析源码时也提到过，三级缓存主要是解决 Spring AOP 的特性。AOP 本身就是对方法的增强，是 `ObjectFactory<?>` 类型的 lambda 表达式，而 Spring 的原则又不希望将此类类型的 Bean 前置创建，所以要存放到三级缓存中处理。
+
+其实整体处理过程类似，唯独是 B 在填充属性 A 时，先查询[成品缓存](https://www.zhihu.com/search?q=成品缓存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1908173247})、再查半成品缓存，最后在看看有没有单例工程类在三级缓存中。最终获取到以后调用 getObject 方法返回代理引用或者原始引用。
+
+## Spring启动流程
+
+spring的启动过程其实就是其IoC容器的启动过程，对于web程序，IoC容器启动过程即是建立上下文的过程。
+
+首先看web.xml中的配置：
+
+```xml
+<servlet>
+        <servlet-name>mvc-dispatcher</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>mvc-dispatcher</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>/WEB-INF/mvc-dispatcher-servlet.xml</param-value>
+    </context-param>
+<listener>      <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+ </listener>
+=================分析===========================================
+<context-param>
+        <param-name>contextConfigLocation</param-name>
+       <param-value>/WEB-INF/mvc-dispatcher-servlet.xml</param-value>
+    </context-param>
+<listener>      <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+ </listener>
+```
+
+这段是加载spring配置文件，初始化上下文，ContextLoaderListener是一个实现了ServletContextListener接口的监听器，在启动项目时会触发contextInitialized方法（该方法主要完成ApplicationContext对象的创建），在关闭项目时会触发contextDestroyed方法（该方法会执行ApplicationContext清理操作）
+
+1. 启动项目时触发contextInitialized方法，通过父类contextLoader得initWebApplicationContext方法创建Spring上下文对象。
+2. initWebApplicationContext方法做了三件事： ①创建WebApplicationContext； ②加载对应的Spring文件创建里面的Bean实例； ③将WebApplicationContext放入ServletContext（就是Java Web的全局变量中）。
+3. createWebApplicationContext创建上下文对象，支持用户自定义的上下文对象，但是必须继承自ConfigurableWebApplicationContext，而Spring MVC默认使用ConfigurableWebApplicationContext作为ApplicationContext（它仅仅是一个接口）的实 现。
+4. configureAndRefreshWebApplicationContext方法用 于封装ApplicationContext数据并且初始化所有相关Bean对象。它会从web.xml中读取名为 contextConfigLocation的配置，这就是spring xml数据源设置，然后放到ApplicationContext中，最后调用传说中的refresh方法执行所有Java对象的创建。
+5. 完成ApplicationContext创建之后就是将其放入ServletContext中，注意它存储的key值常量。
+
+### DispatcherServlet初始化顺序
+
+1. HttpServletBean继承HttpServlet，因此在Web容器启动时将调用它的init方法，该初始化方法的主要作用：将Servlet初始化参数（init-param）设置到该组件上（如contextAttribute、contextClass、namespace、contextConfigLocation），通过BeanWrapper简化设值过程，方便后续使用；提供给子类初始化扩展点，initServletBean()，该方法由FrameworkServlet覆盖。
+
+2. **FrameworkServlet****继承HttpServletBean****，**通过initServletBean()进行Web上下文初始化，该方法主要覆盖一下两件事情：初始化web上下文；提供给子类初始化扩展点。
+
+3. DispatcherServlet继承FrameworkServlet，并实现了onRefresh()方法提供一些前端控制器相关的配置。
+
+   整个DispatcherServlet初始化的过程和做了些什么事情，具体主要做了如下两件事情：
+
+   1、初始化Spring Web MVC使用的Web上下文，并且指定父容器为WebApplicationContext（ContextLoaderListener加载了的根上下文）；
+
+   2、初始化DispatcherServlet使用的策略，如HandlerMapping、HandlerAdapter等。
