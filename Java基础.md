@@ -1,11 +1,11 @@
-## 1. 访问权限
+## 访问权限
 
 - private: 私有的，被其修饰的类、属性、以及方法只能被该类的对象访问，其子类不能访问。
 - default： 即不加任何访问修饰符，通常称为“默认访问模式”， 该模式下，只允许在同一个包中进行访问
 - protect: 称为“保护型”，被修饰的类 、属性、以及方法只能被类本身的方法即子类访问，即使子类在不同的包也可以访问。
 - public：访问限制最宽的修饰符，一般称之为“公共的”，
 
-## 2. 基本数据类型
+## 基本数据类型
 
 **整数类型**：byte、short、int、long
 
@@ -17,7 +17,7 @@
 
 ![image-20211120203734534](E:\实习\Java_docs\pics\image-20211120203734534.png)
 
-## 3. 包装类
+## 包装类
 
 Byte、Short、Integer、Long、Float、Double、Boolean、Character
 
@@ -25,7 +25,7 @@ Byte、Short、Integer、Long、Float、Double、Boolean、Character
 Integer num = new Integer(0);  //创建一个数值为0的Integer对象
 ```
 
-### 3.1 自动装箱
+### 自动装箱
 
 ```java
 Integer num1 = new Integer(1); //基本数据类型转为包装类
@@ -34,7 +34,7 @@ int num2 = num1.intValue();   //包装类转为基本数据类型
 int num2 = num1;  //自动拆箱
 ```
 
-### 3.2 包装类的缓存机制
+### 包装类的缓存机制
 
 ```java
 //2、包装类中的缓存机制
@@ -68,7 +68,7 @@ num7、num8虽然是采用自动装箱的方式，但执行valueOf()方法的时
 2. 在集合类中，我们是无法将int 、double等类型放进去的，因为集合的容器要求元素是Object类型。而包装类型的存在使得向集合中传入数值成为可能，包装类的存在弥补了基本数据类型的不足。
 3. 包装类还为基本类型添加了属性和方法，丰富了基本类型的操作。
 
-## 4. 多态
+## 多态
 
 变量的静态类型&动态类型
 
@@ -91,7 +91,7 @@ public class Test{
 }
 ```
 
-### 4.1 重载
+### 重载
 
 静态分派：
 
@@ -127,7 +127,7 @@ hello,guy!
 hello gentleman!
 ```
 
-### 4.2 重载
+### 重写
 
 根据变量的动态类型进行方法分派
 
@@ -175,17 +175,17 @@ man say hello
 woman say hello
 ```
 
-## 5. Object方法
+## Object方法
 
-### 5.1 getClass
+**getClass**
 
 获取对象运行时class对象
 
-### 5.2 hashCode
+**hashCode**
 
 主要用于获取对象的散列值。Object中该方法默认返回的时对象的堆内存地址
 
-### 5.3 equals
+**equals**
 
 ```java
 public boolean equals(Object obj){
@@ -195,7 +195,7 @@ public boolean equals(Object obj){
 
 用于比较两个对象，如果这两个对象引用的时同一个对象，则返回true，否则返回false。一般 equals 和 == 是不一样的，但是在Object中两者是一样的。子类一般都要重写这个方法。
 
-### 5.4 clone
+**clone**
 
 ```java
 protected native Object clone() throws CloneNotSupportedException;
@@ -205,7 +205,7 @@ protected native Object clone() throws CloneNotSupportedException;
 
 默认的clone方法是浅拷贝。指的是对象内属性引用的对象只会拷贝引用地址，而不会将引用的对象重新分配内存。
 
-### 5.5 toString
+**toString**
 
 ```java
 public String toString(){
@@ -213,15 +213,15 @@ public String toString(){
 }
 ```
 
-### 5.6 notify
+**notify**
 
 用于唤醒在该对象上等待的某个线程。
 
-### 5.7 notifyAll
+**notifyAll**
 
 用于唤醒在该对象上等待的所有线程。
 
-### 5.8 wait(long timeout)
+**wait(long timeout)**
 
 ```java
 public final native void wait(long timeout) throws InterruptedException;
@@ -229,20 +229,20 @@ public final native void wait(long timeout) throws InterruptedException;
 
 使当前线程等待该对象的锁，当前线程必须是该对象的拥有者。
 
-### 5.9 wait(long timeout, int nanos)
+**wait(long timeout, int nanos)**
 
-### 5.10 wait
+**wait**
 
-### 5.11 finalize
+**finalize**
 
-## 6. == 和 equals的区别
+## == 和 equals的区别
 
-### 6.1 ==
+### ==
 
 - 引用类型： `==`是直接比较两个对象的堆内存地址，如果相等，则说明两个引用实际上指向同一个对象地址的。
 - 基本类型：对于基本类型（8个）和直接声明的`String s1 = "abc";`，都是作为字面量存在常量池中以HashSet策略存储起来的，在常量池中，一个常量只会对应一个地址，所以它们的引用都是指向的同一块地址。
 
-### 6.2 equals
+### equals
 
 -  **Object的通用方法**，在没有重写之前，与==是没有区别的；
 
@@ -283,7 +283,7 @@ public class Student{
   - 将Object对象强制转型
   - 判断每个属性的值是否相等
 
-## 7. String
+## String
 
 ```java
 public final class String implements java.io.Serializable, Comparable<String>, CharSequence {
@@ -301,7 +301,7 @@ public final class String implements java.io.Serializable, Comparable<String>, C
 - String类实现了Serializable、CharSequence、 Comparable接口。
 - String类的值是通过char数组存储的，并且char数组被private和final修饰，字符串一旦创建就不能再修改。
 
-### **问题一**
+**问题一**
 
 上面说字符串一旦创建就不能再修改，String类提供的`replace()`方法不就可以替换修改字符串的内容吗？
 
@@ -338,7 +338,7 @@ public String replace(char oldChar, char newChar) {
 
 ==其他方法也是一样，无论是sub、concat还是replace操作都不是在原有的字符串上进行的，而是重新生成了一个新的字符串对象。==
 
-### 问题二
+**问题二**
 
 **为什么要使用final关键字修饰String类？**
 
@@ -403,8 +403,6 @@ public synchronized int capacity(){
 }
 ```
 
-
-
 ### String拼接字符串
 
 除了直接使用=赋值，也会用到字符串拼接，字符串拼接又分为变量拼接和已知字符串拼接。
@@ -427,9 +425,9 @@ System.out.println(str1==str2);//false
 System.out.println(str1==str3);//true
 ```
 
-## 8. 接口和抽象类
+## 接口和抽象类
 
-### 8.1 抽象类
+### 抽象类
 
 1. 由abstract修饰符声明
 2. 无法实例化
@@ -444,7 +442,7 @@ public abstract class vehicle{
 }
 ```
 
-### 8.2 接口
+### 接口
 
 1. 使用interface关键字声明
 2. 无法实例化
@@ -469,11 +467,11 @@ public interface weighable {
 }
 ```
 
-## 9. Finally 
+## Finally 
 
 [finally代码块一定会执行吗？_浅末年华的博客-CSDN博客_finally一定会执行吗](https://blog.csdn.net/qq_39135287/article/details/78455525)
 
-## 10. static关键字
+## static关键字
 
 static的主要意义在于创建独立于具体对象的域变量或者方法。**以至于即使没有创建对象，也能使用属性和调用方法。**
 
@@ -487,7 +485,7 @@ static的主要意义在于创建独立于具体对象的域变量或者方法�
 3. static变量值在类加载的时候分配空间，以后创建类对象的时候不会重新分配。
 4. 被static修饰的变量或者方法是优先于对象存在的，也就是说当一个类加载完毕之后，即便没有创建对象，也可以去访问。
 
-### 10.1 应用场景
+### 应用场景
 
 因为static是被类的实例对象所共享，因此如果某个成员变量是被所有对象所共享的话，**那么这个成员变量就应该被定义为静态变量**。
 
@@ -501,7 +499,7 @@ static的主要意义在于创建独立于具体对象的域变量或者方法�
 
 5、静态导包
 
-### 10.2 静态变量和实例变量
+### 静态变量和实例变量
 
 静态变量： static修饰的成员变量，静态变量属于这个类，而不是属于对象。
 
@@ -523,7 +521,7 @@ public class StaticDemo {
 // 结果 666
 ```
 
-###  10.3 执行顺序
+###  执行顺序
 
 基本上代码块分为三种：Static静态代码块、构造代码块、普通代码块
 
@@ -531,16 +529,16 @@ public class StaticDemo {
 
 继承中代码块执行顺序：**父类静态块——>子类静态块——>父类代码块——>父类构造器——>子类代码块——>子类构造器**
 
-## 11. 类加载器
+## 类加载器
 
-### 11.1 加载器种类
+### 加载器种类
 
 - **启动类加载器**（Bootstrap ClassLoader）：负责将存放在`<JAVA_HOME>\lib`目录中的，并且能被虚拟机识别的类库加载到虚拟机内存中。
 - **扩展类加载器**（Extension ClassLoader）：负责加载<JAVA_HOME>\lib\ext目录中的所有类库
 - 应用程序类加载器（Application ClassLoader）：
 - 由于这个类加载器是 ClassLoader 中的 `getSystemClassLoader()` 方法的返回值，所以一般也称它为“系统类加载器”。它负责加载用户类路径（classpath）上所指定的类库，开发者可以直接使用这个类加载器，如果应用程序中没有自定义过自己的类加载器，一般情况下这个就是程序中默认的类加载器。
 
-### 11.2 双亲委派
+### 双亲委派
 
 双亲委派模型是描述类加载器之间的层次关系。它要求除了顶层的启动类加载器外，其余的类加载器都应当有自己的父类加载器。（父子关系一般不会以继承的关系实现，而是以组合关系来复用父加载器的代码）
 
@@ -556,7 +554,264 @@ public class StaticDemo {
 
 相反，如果没有使用双亲委派模型，由各个类加载器自行去加载的话，如果用户自己编写了一个称为 java.lang.Object 的类，并放在 classpath 下，那么系统将会出现多个不同的 Object 类，Java 类型体系中最基础的行为也就无法保证。
 
-## 12. 原子类
+## 反射
 
-### 12.1 AtomicInteger的内部实现
+Java 反射的主要组成部分有4个：
+
+- **Class**： 任何运行在内存中的所有类都是该Class类的实例对象，每个Class类对象内部都包括了本来的**所有信息**
+
+- **`Field`**：描述一个类的**属性**，内部包含了该属性的所有信息，例如**数据类型，属性名，访问修饰符**
+
+- **`Constructor`**：描述一个类的**构造方法**，内部包含了构造方法的所有信息，例如**参数类型，参数名字，访问修饰符**
+- **`Method`**：描述一个类的**所有方法**（包括抽象方法），内部包含了该方法的所有信息，与`Constructor`类似，不同之处是 Method 拥有**返回值类型**信息，因为构造方法是没有返回值的。
+
+![image-20211206002248468](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211206002248468.png)
+
+新建一个类（**属性，构造函数和方法）**
+
+```java
+public class SmallPineapple {
+    public String name;
+    public int age;
+    private double weight;
+
+    public SmallPineapple() {
+    }
+
+    public SmallPineapple(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+
+    public void getInfo() {
+        System.out.println("[" + name + " 的年龄是：" + age + "]");
+    }
+}
+```
+
+### 获取类的Class对象
+
+获取 Class 对象的方法有`3`种：
+
+- `类名.class`：这种获取方式只有在`编译`前已经声明了该类的类型才能获取到 Class 对象
+
+```java
+Class clazz = SmallPineapple.class;
+```
+
+- `实例.getClass()`：通过实例化对象获取该实例的 Class 对象
+
+```java
+SmallPineapple sp = new SmallPineapple();
+Class clazz = sp.getClass();
+```
+
+- `Class.forName(className)`：通过类的**全限定名**获取该类的 Class 对象
+
+```java
+Class clazz = Class.forName("com.bean.smallpineapple");
+```
+
+在程序中，每个类的 Class 对象只有一个通过三种方式打印各个 `Class` 对象都是相同的。
+
+> 内存中只有一个 Class 对象的原因要牵扯到 `JVM 类加载机制`的`双亲委派模型`，它保证了程序运行时，`加载类`时每个类在内存中仅会产生一个`Class对象`。
+
+### 构造类的实例化对象
+
+通过反射构造一个类的实例方法有`2`种：
+
+- Class对象调用`newInstance()`方法
+
+```java
+Class clazz = Class.forName("com.bean.SmallPineapple");
+SmallPineapple smallpineapple = (SmallPineapple)clazz.newInstance();
+smallpineapple.getInfo();
+//打印输出
+// [null 的年龄是：0]
+```
+
+即使 SmallPineapple 已经显式定义了构造方法，通过 newInstance() 创建的实例中，所有属性值都是对应类型的`初始值`，因为 newInstance() 构造实例会**调用默认无参构造器**。
+
+- Constructor构造器调用`newInstance()`方法
+
+```java
+Class clazz = Class.forName("com.bean.SmallPineapple");
+Constructor constructor = clazz.getConstructor(String.class, int.class);
+constructor.setAccessible(true);
+SmallPineapple smallpineapple = (SmallPineapple) constructor.newInstance("ABC",21);
+smallpineapple.getInfo();
+//print
+// [小菠萝 的年龄是：21]
+```
+
+### 获取一个类的所有信息
+
+**Class 对象中包含了该类的所有信息，在编译期我们能看到的信息就是该类的变量、方法、构造器，在运行时最常被获取的也是这些信息。**
+
+![image-20211206155857123](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211206155857123.png)
+
+#### 获取类中的变量（Field）
+
+- Field[] getFields()：获取类中所有被`public`修饰的所有变量
+- Field getField(String name)：根据**变量名**获取类中的一个变量，该**变量必须被public修饰**
+- Field[] getDeclaredFields()：获取类中所有的变量，但**无法获取继承下来的变量**
+- Field getDeclaredField(String name)：根据姓名获取类中的某个变量，**无法获取继承下来的变量**
+
+#### 获取类中的方法（Method）
+
+- Method[] getMethods()：获取类中被`public`修饰的所有方法
+- Method getMethod(String name, Class...<?> paramTypes)：根据**名字和参数类型**获取对应方法，该方法必须被`public`修饰
+- Method[] getDeclaredMethods()：获取`所有`方法，但**无法获取继承下来的方法**
+- Method getDeclaredMethod(String name, Class...<?> paramTypes)：根据**名字和参数类型**获取对应方法，**无法获取继承下来的方法**
+
+#### 获取类的构造器（Constructor）
+
+- Constuctor[] getConstructors()：获取类中所有被`public`修饰的构造器
+- Constructor getConstructor(Class...<?> paramTypes)：根据`参数类型`获取类中某个构造器，该构造器必须被`public`修饰
+- Constructor[] getDeclaredConstructors()：获取类中所有构造器
+- Constructor getDeclaredConstructor(class...<?> paramTypes)：根据`参数类型`获取对应的构造器
+
+获取SmallPineapple获取类中**所有的方法**
+
+```java
+Class clazz = Class.forName("SmallPineapple");
+        Constructor constructor = clazz.getConstructor(String.class, int.class);
+        constructor.setAccessible(true);
+        SmallPineapple smallPineapple = (SmallPineapple) constructor.newInstance("ABC", 21);
+        smallPineapple.getInfo();
+        Method[] methods = clazz.getMethods();
+        Set<Method> set = new HashSet<>();
+        set.addAll(Arrays.asList(methods));
+        System.out.println(set);
+```
+
+### 通过反射调用方法
+
+通过反射获取某个Method类对象后，可以通过调用`invoke`方法执行。
+
+- `invoke(Object obj, Object... args)`:  **obj指定调用该方法的对象**， **args是方法的参数列表值**
+
+如果调用的方法是**静态方法**，参数1只要传入`null`，因为静态方法不与某个对象有关，只与某个类有关。
+
+```java
+        Class clazz = Class.forName("SmallPineapple");
+        Constructor constructor = clazz.getConstructor(String.class, int.class);
+        constructor.setAccessible(true);
+        SmallPineapple smallPineapple = (SmallPineapple) constructor.newInstance("ABC", 21);
+        smallPineapple.getInfo();
+        Method[] methods = clazz.getMethods();
+        Set<Method> set = new HashSet<>();
+        set.addAll(Arrays.asList(methods));
+        System.out.println(set);
+        Method method = clazz.getMethod("setName", String.class);
+        if(method != null){
+            method.invoke(smallPineapple,"CBA");
+        }
+        smallPineapple.getInfo();
+//first print
+//[ABC 的年龄是：21]
+//modify and print
+//[CBA 的年龄是：21]
+```
+
+### 反射的应用场景
+
+- **Spring实例化对象**，当程序启动时，Spring会读取配置文件`applicationContext.xml`并解析里面所有的标签实例化到`IOC容器`中。
+- **反射+工厂模式**，通过`反射`消除工厂中的多个分支，如果需要生产新的类，无需关注工厂类，工厂类可以应对各种新增的类，`反射`可以使得程序更加健壮。
+- **JDBC连接数据库**：使用JDBC连接数据库时，指定连接数据库的`驱动类`时用到反射加载驱动类。
+
+#### Spring的IOC容器
+
+在Spring中，上下文配置文件`applicationContext.xml`，里面就是关于bean的配置，程序启动时会读取该 xml 文件，解析出所有的 `<bean>`标签，并实例化对象放入`IOC`容器中。
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+    <bean id="smallpineapple" class="com.bean.SmallPineapple">
+        <constructor-arg type="java.lang.String" value="ABC"/>
+        <constructor-arg type="int" value="21"/>
+    </bean>
+</beans>
+
+```
+
+在定义好上面的文件后，通过`ClassPathXmlApplicationContext`加载该配置文件，程序启动时，Spring 会将该配置文件中的所有`bean`都实例化，放入 IOC 容器中，IOC 容器本质上就是一个工厂，通过该工厂传入 <bean> 标签的`id`属性获取到对应的实例。
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        ApplicationContext ac =
+                new ClassPathXmlApplicationContext("applicationContext.xml");
+        SmallPineapple smallPineapple = (SmallPineapple) ac.getBean("smallpineapple");
+        smallPineapple.getInfo(); // [ABC的年龄是：21]
+    }
+}
+
+```
+
+Spring 在实例化对象的过程经过简化之后，可以理解为反射实例化对象的步骤：
+
+- **获取Class对象的构造器**
+- 通过构造器**调用newInstance（）**实例化对象
+
+#### 反射+抽象工厂模式
+
+传统的工厂模式，如果需要生产新的子类，**需要修改工厂类，在工厂类中增加新的分支**；
+
+```java
+public class MapFactory {
+    public Map<Object, object> produceMap(String name) {
+        if ("HashMap".equals(name)) {
+            return new HashMap<>();
+        } else if ("TreeMap".equals(name)) {
+            return new TreeMap<>();
+        } // ···
+    }
+}
+```
+
+利用反射和工厂模式相结合，在产生新的子类时，**工厂类不用修改任何东西**，可以专注于子类的实现，**当子类确定下来时，工厂也就可以生产该子类了。**
+
+反射 + 抽象工厂的**核心思想**是：
+
+- **在运行时通过参数传入不同子类的全限定名获取到不同的 Class 对象，调用 newInstance() 方法返回不同的子类。**
+
+```java
+public class MapFactory {
+    public Map<Object, Object> produceMap(String className) {
+        Class clazz = Class.forName(className);
+        Map<Object, Object> map = clazz.newInstance();
+        return map;
+    }
+}
+
+```
+
+#### JDBC加载数据驱动类
+
+```java
+private static final String DRIVER_CLASS_NAME = "com.mysql.jdbc.Driver";
+    public static Connection getConnection() throws SQLException, ClassNotFoundException {
+        Connection conn = null;
+        Class.forName(DRIVER_CLASS_NAME);
+        conn = DriverManager.getConnection("jdbc:mysql://···", "root", "root");
+        return conn;
+    }
+```
+
+### 反射的优势及缺陷
+
+优点：
+
+- **增加程序的灵活性**，面对需求变更时，可以灵活地实例化不同对象
+
+缺点：
+
+- **破坏类的封装性**：可以强制访问private修饰的信息
+- **性能损耗**：反射相比直接实例化对象、调用方法、访问变量，中间需要非常多的**检查步骤和解析步骤**，JVM对他们无法优化
+- 
+
+
 
