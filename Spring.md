@@ -301,7 +301,7 @@ public class Me(){
 
 **Proxy：**该类就是为我们生成动态代理的 类
 
-- `static Object newProxyInstanc(ClassLoader loader,Class[] interface,InvocationHandler h)` :
+- `static Object newProxyInstance(ClassLoader loader,Class[] interface,InvocationHandler h)` :
 
   该静态方法会返回一个Object，
 
@@ -1138,3 +1138,7 @@ spring的启动过程其实就是其IoC容器的启动过程，对于web程序�
    1、初始化Spring Web MVC使用的Web上下文，并且指定父容器为WebApplicationContext（ContextLoaderListener加载了的根上下文）；
 
    2、初始化DispatcherServlet使用的策略，如HandlerMapping、HandlerAdapter等。
+
+## SpringBoot 自动配置
+
+[SpringBoot | 是如何实现自动配置的？ - 云+社区 - 腾讯云 (tencent.com)](https://cloud.tencent.com/developer/article/1522642)

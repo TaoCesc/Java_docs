@@ -631,7 +631,7 @@ public String getProduceNum(String key){
 **对于缓存雪崩的解决方案有以下两种**：
 
 1. 搭建高可用的集群，防止单机的redis宕机。
-2. 设置不同的过期时间，防止同意之间内大量的key失效。
+2. 设置不同的过期时间，防止同一时间内大量的key失效。
 
 ## 数据一致性
 
@@ -980,7 +980,7 @@ Read/Write Through模式中，服务端把缓存作为主要数据存储。应�
 
 #### Write behind(异步缓存写入)
 
-Write behind跟Read-Through/Write-Through有相似的地方，都是由Cache Provider来负责缓存和数据库的读写。它两又有个很大的不同：Read/Write Through是同步更新缓存和数据的，Write Behind则是只更新缓存，不直接更新数据库，通过批量异步的方式来更新数据库。
+Write behind跟Read-Through/Write-Through有相似的地方，都是由Cache Provider来负责缓存和数据库的读写。它俩又有个很大的不同：Read/Write Through是**同步更新缓存和数据**的，Write Behind则是只更新缓存，不直接更新数据库，通过批量异步的方式来更新数据库。
 
 <img src="https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211129162118163.png" alt="image-20211129162118163" style="zoom:67%;" />
 
