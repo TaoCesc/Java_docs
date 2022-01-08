@@ -1,89 +1,5 @@
 
 
-## 五种基本数据类型
-
-### 字符串对象
-
-```
-set number 520
-get number
-```
-
-- 应用场景： 共享session、分布式锁、计数器、限流
-- 内部编码：`int（8字节长整型）/embstr（小于等于39字节字符串）/raw（大于39个字节字符串）`
-
-### 散列对象
-
-内部实现结构上与JDK1.7的HashMap一致，底层通过数据+链表实现。
-
-- 哈希类型是指v（值）本身又是一个键值对（k-v)结构
-- 举例： `hset key field value`,`hget key field`
-- 内部编码： `ziplist(压缩列表)`,`hashtable(哈希表)`
-- 应用场景：
-- - 记录整个博客的访问人数（数据量大会考虑HyperLogLog，但是这个数据结构存在很小的误差，如果不能接受误差，可以考虑别的方案）
-  - 记录博客中某个博主的主页访问量、博主的姓名、联系方式、住址
-
-### 列表对象
-
-简介：列表（list）类型是用来存储多个有序的字符串，一个列表最多可以存储2^32-1个元素。
-
-简单实用举例：` lpush  key  value [value ...]` 、`lrange key start end`
-
-内部编码：ziplist（压缩列表）、linkedlist（链表）
-
-应用场景： 消息队列，文章列表
-
-- lpush+lpop=Stack（栈）
-- lpush+rpop=Queue（队列）
-- lpsh+ltrim=Capped Collection（有限集合）
-- lpush+brpop=Message Queue（消息队列）
-
-```c++
-typedef struct listNode{
-    //前置节点
-    struct listNode *prev;
-    //后置节点
-    struct listNode *next;
-    void *value;
-}listNode;
-```
-
-![image-20211115191406712](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211115191406712.png)
-
-- 链表被用于实现Redis的各种功能，比如列表键、发布与订阅、慢查询、监视器等。
-
-### 集合对象
-
-**Redis的set集合相当于Java的HashSet。**
-
-![image-20211117201357931](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211117201357931.png)
-
-相当于
-
-- 简介：集合（set）类型也是用来保存多个的字符串元素，但是不允许重复元素
-- 简单使用举例：`sadd key element [element ...]`、`smembers key`
-- 内部编码：`intset（整数集合）`、`hashtable（哈希表）`
-- 应用场景： 用户标签、生成随机数抽奖、社交需求。
-
-### 有序集合
-
-zset为有序（优先score排序，score相同则元素字典序），自动去重的集合数据类型，其底层实现为字典和跳跃表，当数据比较少的时候用压缩列表（ziplist）编码结构存储。
-
-**同时满足**以下两个条件采用ziplist存储：
-
-- 有序集合保存的元素数量小于默认值128个
-- 有序集合保存的所有元素的长度小于默认值64字节
-
-#### ziplist存储方式
-
-当ziplist作为zset的底层存储结构时候，每个集合元素使用两个紧挨在一起的压缩列表节点来保存，**第一个节点保存元素的成员，第二个元素保存元素的分值**
-
-![image-20211122160546544](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211122160546544.png)
-
-#### 字典+跳跃表
-
-
-
 ## 数据结构
 
 ### SDS(simple dynamic string)
@@ -111,19 +27,36 @@ struct sdshdr{
 
 当需要修改数据时，首先会检查当前SDS空间len是否满足，不满足则自动扩容空间至修改所需的大小，然后再实行修改
 
-==内存重分配策略==
+**减少修改字符串时带来的内存重分配次数**
 
-SDS通过两种内存重分配策略，很好的解决了字符串在增长和缩短时的内存分配问题。
+C字符串并不记录自身的长度，所以每次增长或者缩短一个C字符串，程序都总要保存这个C字符串的数组进行一次内存重分配操作：
 
-1. 空间预分配
+- **增长字符串**：比如拼接操作（append），程序需要先通过内存重分配来扩展底层数组的空间大小——如果忘了这一步就会产生缓冲区溢出。
+- **缩短字符串**：比如截断操作（trim），程序需要通过内存重分配来释放字符串不再使用的那部分空间———如果忘了这一步就会产生内存泄漏。
 
-当修改字符串对SDS空间进行扩展时，不仅会为SDS分配修改所必要的空间，还会再为SDS分配额外的未使用空间`free`。**其大小一般为修改后的长度**。
+==SDS通过两种内存重分配策略，很好的解决了字符串在增长和缩短时的内存分配问题==。
 
-2. 惰性空间释放
+*空间预分配*
+
+当修改字符串对SDS空间进行扩展时，不仅会为SDS分配修改所必要的空间，还会再为SDS分配额外的未使用空间`free`。**举个例子**：如果进行修改之后，SDS的len将变成13字节，那么程序也会分配13字节的未使用空间，SDS的buf数组的实际长度将变成13+13+1=27字节。
+
+*惰性空间释放*
 
 用于优化SDS字符串缩短操作，当缩短SDS字符串后，并不会立即执行内存重分配回收多余的空间，而是用`free`属性将这些空间记录下来。
 
+**二进制安全**
+
+使用SDS来保存特殊数据（比如`Redis Cluster`）,因为SDS使用len属性的值而不是空字符来判断字符串是否结束。
+
+![image-20220108135347580](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108135347580.png)
+
+**兼容部分C字符串函数**
+
 ### 链表
+
+链表提供了高校的节点重排能力，以及顺序性的节点访问方式，并且可以通过增删节点来灵活地调整链表的长度。
+
+当一个列表键包含了数量比较多的元素，又或者列表中包含的元素都是比较长的字符串时，Redis就会使用链表作为列表键的底层实现。
 
 链表节点
 
@@ -133,9 +66,12 @@ typedef struct listNode{
     struct listNode *prev;
     //后置节点
     struct listNode *next;
+    //节点的值
     void *value;
 }listNode;
 ```
+
+![image-20220108140329868](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108140329868.png)
 
 ```c++
 typedef struct list {
@@ -154,13 +90,21 @@ typedef struct list {
 } list;
 ```
 
+![image-20220108140253346](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108140253346.png)
+
 链表特性
 
-- 双端链表： 带有指向前置节点和后置节点的指针
-- 无环： 表头节点的prev和表尾节点的next都指向null
-- 链表长度计数器：带有len属性
+- **双端**： 链表节点带有`prev`和`next`指针，获取某个节点的前置节点和后置节点的复杂度都是O(1)。
+- **无环**： 表头节点的`prev`和表尾节点的`next`都指向`null`。
+- **带链表长度计数器**：带有len属性
 
 ### 字典
+
+字典也成为映射（map），是一种用于保存键值对（key-value pair)的抽象数据结构。
+
+当一个哈希键包含的键值对比较多，又或者键值对中的元素都是比较长的字符串时，Redis就会使用字典作为哈希键的底层实现。
+
+
 
 用于保存键值对（key-value pair)
 
@@ -168,8 +112,6 @@ typedef struct list {
 set msg 'hello world'
 # 在数据库中创建一个键为"msg",值为"hello world"
 ```
-
-当一个哈希键包含的键值对比较多，又或者键值对中的元素都是比较长的字符串时，Redis就会使用字典作为哈希键的底层实现。
 
 ==字典使用哈希表作为底层实现，一个哈希表里面又多个哈希表节点，而每个哈希表节点就保存了字典中的一个键值对。==
 
@@ -208,11 +150,11 @@ typedef struct dictEntry{
 
 ![image-20211115192436628](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211115192436628.png)
 
-**字典实现**
+**字典**
 
 ```c++
 typedef struct dict{
-    //类型指定
+    //类型特定函数
     dictType * type;
     //私有属性
     void * privdata;
@@ -224,20 +166,36 @@ typedef struct dict{
 }dict;
 ```
 
-- ht属性是一个包含两个项的数组，数组中的每个项都是一个dictht哈希表，一般情况下，字典只使用ht [0]哈希表,ht [1]哈希表只会在对ht[0]哈希表进行rehash时使用。
-- 除了ht[1]之外，另一个和rehash有关的属性就是rehashidx，它记录了rehash目前的进度，如果目前没有在进行rehash，那么它的值为-1。
+- `type`和`privdata`属性时针对不同类型的键值对，为创建多态字典而设置的。
+- ht属性是一个包含两个项的数组，数组中的每个项都是一个dictht哈希表，一般情况下，**字典只使用ht [0]哈希表**,ht [1]哈希表只会在对ht[0]哈希表进行rehash时使用。
+- 除了ht[1]之外，另一个和rehash有关的属性就是`rehashidx`，它记录了rehash目前的进度，如果目前没有在进行rehash，那么它的值为-1。
 
-Rehash过程
+**哈希算法**
 
-1. 为字典的ht[1]分配空间，取决于ht[0].used属性的值
+MurmurHash2算法
 
-- 如果执行的是扩展操作，那么ht[1]的大小为第一个大于等于ht[0].used * 2的 2^n
-- 如果执行的收缩操作，那么ht[1]的大小为第一个大于等于ht[0].used 的2^n
+```
+# 使用字典设置的哈希函数，计算键key的哈希值
+hash = dict->type->hashFunction(key);
+
+# 使用哈希表的sizemask属性和哈希值，计算出索引值
+# 根据情况不同， ht[x]可以是ht[0] or ht[1]
+index = hash & dict->ht[x].sizemask;
+```
+
+**Rehash过程**
+
+1. 为字典的ht[1]哈希表分配空间，取决于ht[0].used属性的值
+
+   - 如果执行的是扩展操作，那么ht[1]的大小为第一个大于等于ht[0].used * 2的 2^n
+
+   - 如果执行的是收缩操作，那么ht[1]的大小为第一个大于等于ht[0].used 的2^n
+
 
 2. 将保存在ht[0]中的所有键值对rehash到ht[1]上面：rehash是指重新计算哈希值和索引值。
 3. 当ht[0]包含的所有键值对都迁移到了ht[1]之后（ht[0]为空表时), 释放ht[0]， 将ht[1]设置为ht[0]，并且ht[1]新创建一个空白哈希表。
 
-==扩展和收缩的条件==
+**哈希表的扩展和收缩**
 
 当以下条件中的任意一个被满足时，程序会自动开始对哈希表执行扩展操作：
 
@@ -250,9 +208,11 @@ Rehash过程
 
 ### 跳跃表
 
-跳跃表是有序集合（Sorted Set）的底层实现之一，如果有序集合包含的元素比较多，或者元素的成员是比较长的字符串时，Redis会使用跳跃表做有序集合的底层实现
+跳跃表（skiplist）是一种有序数据结构，它通过在每个节点中维持多个指向其他节点的指针，从而达到快速访问节点的目的。
 
-跳跃表的定义
+跳跃表是有序集合（Sorted Set）的底层实现之一，如果有序集合包含的元素比较多，或者元素的成员是比较长的字符串时，Redis会使用跳跃表做有序集合的底层实现。
+
+Redis只在两个地方用到了跳跃表，一个是实现有序集合键，另一个是在集群节点中用作内部数据结构。
 
 ==多层的链表==
 
@@ -265,6 +225,8 @@ Rehash过程
 
 ### 整数集合
 
+整数集合（intset）是集合键的底层实现之一，当一个集合只包含证书值元素，并且这个集合的元素数量不多时，Redis就会使用整数集合作为集合键的底层实现。
+
 ```c++
 typedef struct intset{
     //编码方式
@@ -276,11 +238,15 @@ typedef struct intset{
 }intset;
 ```
 
+contents数组是整数集合的底层实现：整数集合的每个元素都是contents数组的一个数组项（item），各个项再数组中按值得大小从小到大有序地排列，并且数组中不包含任何重复项。
+
 ### 压缩列表
 
-是由一系列特殊编码的连续内存块组成的顺序性（sequential）数据结构，一个压缩列表可以包含多个节点，每个节点可以保存一个字节数组或者一个整数值。
+压缩列表（ziplist）是列表键和哈希键的底层实现之一。当一个列表键只包含少量列表项，并且每个列表项要么是小整数值，要么就是长度比较短的字符串，那么Redis就会使用压缩列表来做列表键的底层实现。
 
-压缩列表是列表（List）和散列（Hash）的底层实现实现之一，一个列表只包含少量列表项，并且每个列表项是小整数值或比较短的字符串，会使用压缩列表作为底层实现
+压缩列表是Redis为了节约内存而开发的，是一系列特殊编码的连续内存块组成的顺序型数据结构。一个压缩列表可以包含任意多个节点（entry），每个节点可以保存一个字节数组或者一个整数值。
+
+![image-20220108151308425](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108151308425.png)
 
 `zlbytes`：记录整个压缩列表占用的内存字节数，在压缩列表内存重分配，或者计算`zlend`的位置时使用
 
@@ -288,17 +254,289 @@ typedef struct intset{
 
 `zllen`：记录压缩列表包含的节点数量，但该属性值小于UINT16_MAX（65535）时，该值就是压缩列表的节点数量，否则需要遍历整个压缩列表才能计算出真实的节点数量
 
-`entryX`：压缩列表的节点
+`entryX`：压缩列表的各个节点，节点的长度由节点保存的内容决定。
 
-`zlend`：特殊值0xFF（十进制255），用于标记压缩列表的末端
+`zlend`：特殊值0xFF（十进制255），用于标记压缩列表的末端。
 
 压缩列表的节点构成
+
+每个压缩列表节点可以保存一个字节数组或者一个整数值：
+
+- 长度小于63字节的字节数组
+- 长度小于等于16383字节的字节数组
+- 长度小于（2^32-1)字节的字节数组
 
 ![image-20211122154047229](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211122154047229.png)
 
 - `previous_entry_ength`：记录压缩列表前一个字节的长度
 - `encoding`：节点的encoding保存的是节点的content的内容类型
 - `content`：content区域用于保存节点的内容，节点内容类型和长度由encoding决定
+
+**previous_entry_length**
+
+节点的`previous_entry_length`属性以字节为单位，记录了压缩列表中前一个节点的长度。`previous_entry_length`属性的长度可以是1字节或者5字节。	
+
+- 如果前一节点的长度小于254字节，那么`previous_entry_length`属性的长度为1字节：前一节点的长度就保存在这一个字节中。
+- 如果前一节点的长度大于等于254字节，那么`previous_entry_length`属性的长度为5字节：其中属性的第一字节会被设置为0xFE(**十进制的254**)，而之后的四个字节则保存前一节点的长度。
+
+![image-20220108153053507](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108153053507.png)
+
+![image-20220108153117935](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108153117935.png)
+
+因为节点的`previous_entry_length`属性记录了前一节点的长度，所以可以通过指针运算，根据当前节点的起始地址来计算出前一个节点的起始地址。
+
+压缩列表的表尾向表头遍历就是使用这一原理实现的，只要**拥有一个指向某个节点起始地址的指针，那么通过这个指针以及这个节点的previous_entry_length属性，程序就可以一直向前一个几点回溯**
+
+**encoding**
+
+节点的`encoding`属性记录了节点的content属性锁保存数据的类型以及长度。
+
+**content**
+
+节点的content属性负责保存节点的值，节点值可以是一个字节数组或者整数，值的类型和长度由节点的encoding属性决定。
+
+## 五种基本数据对象
+
+对于Redis数据库保存的键值对来说，键总是一个字符串对象，而值则可以是字符串对象、列表对象、哈希对象、集合对象或者有序集合对象的其中一种。
+
+![image-20220108155214406](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108155214406.png)
+
+### 字符串对象
+
+字符串对象的编码可以是int、raw、或者embstr。
+
+- **int**:如果一个字符串对象保存的是整数值，并且这个整数值可以用long类型来表示，那么字符串对象会将整数值保存在字符串对象结构的ptr属性里面。并将字符串的编码设置为int。
+- **raw**:如果字符串保存的是一个字符串值，并且这个字符串值得长度大于32字节，那么字符串对象将使用SDS来保存这个字符串值。
+- **embstr**：如果字符串对象保存得是一个字符串值，并且这个字符串得长度小于等于32字节，那么字符串对象将使用embstr编码的方式来保存这个字符串值。
+
+![image-20220108164043570](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108164043570.png)
+
+```
+set number 520
+get number
+```
+
+- 应用场景： 共享session、分布式锁、计数器、限流
+
+### 哈希对象
+
+哈希对象的编码可以是ziplist或者hashtable。
+
+**ziplist编码的哈希对象**使用压缩列表作为底层实现，每当有新的键值对要加入到哈希对象时，程序会先将保存了键的压缩列表节点推入到压缩列表表尾，然后将保存了值的压缩列表节点推入到压缩列表表尾，因此：
+
+- 保存了同一键值对的两个节点总是紧挨在一起，保存键的节点在前，保存值得节点在后；
+- 先添加到哈希对象的键值对会被放在压缩列表的表头方向，而后来添加到哈希对象中的键值对会被放在压缩列表的表尾方向。
+
+For example：
+
+![image-20220108170254066](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108170254066.png)
+
+
+
+![image-20220108170306953](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108170306953.png)
+
+**hashtable编码的哈希对象**使用字典作为底层实现，哈希对象中的每个键值对都使用一个字典键值对来保存：
+
+- 字典的每个键都是一个字符串对象，对象中保存了键值对的键。
+- 字典的每个值都是一个字符串对象，对象中保存了键值对的值。
+
+![image-20220108195412459](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108195412459.png)
+
+- 应用场景：
+- - 记录整个博客的访问人数（数据量大会考虑HyperLogLog，但是这个数据结构存在很小的误差，如果不能接受误差，可以考虑别的方案）
+  - 记录博客中某个博主的主页访问量、博主的姓名、联系方式、住址
+
+### 列表对象
+
+列表对象的编码可以是ziplist或者linkedlist。
+
+ziplist编码的列表对象使用压缩列表作为底层实现，每个压缩列表节点（entry）保存了一个列表元素。
+
+```c++
+redis > RPUSH numbers 1 "three" 5
+(integer) 3
+```
+
+![image-20220108164554614](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108164554614.png)
+
+简介：列表（list）类型是用来存储多个有序的字符串，一个列表最多可以存储2^32-1个元素。
+
+简单实用举例：` lpush  key  value [value ...]` 、`lrange key start end`
+
+内部编码：ziplist（压缩列表）、linkedlist（链表）
+
+应用场景： 消息队列，文章列表
+
+- lpush+lpop=Stack（栈）
+- lpush+rpop=Queue（队列）
+- lpsh+ltrim=Capped Collection（有限集合）
+- lpush+brpop=Message Queue（消息队列）
+
+```c++
+typedef struct listNode{
+    //前置节点
+    struct listNode *prev;
+    //后置节点
+    struct listNode *next;
+    void *value;
+}listNode;
+```
+
+![image-20211115191406712](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211115191406712.png)
+
+- 链表被用于实现Redis的各种功能，比如列表键、发布与订阅、慢查询、监视器等。
+
+### 集合对象
+
+集合对象的编码可以是intset或者hashtable。
+
+intset编码的集合对象使用整数集合作为底层实现，集合对象包含的所有元素都被保存在整数集合里面。
+
+For example:
+
+![image-20220108195639610](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108195639610.png)
+
+![image-20220108195649025](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20220108195649025.png)
+
+![image-20220108195748841](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108195748841.png)
+
+![image-20220108195758569](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108195758569.png)
+
+**Redis的set集合相当于Java的HashSet。**
+
+![image-20211117201357931](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211117201357931.png)
+
+相当于
+
+- 简介：集合（set）类型也是用来保存多个的字符串元素，但是不允许重复元素
+- 简单使用举例：`sadd key element [element ...]`、`smembers key`
+- 内部编码：`intset（整数集合）`、`hashtable（哈希表）`
+- 应用场景： 用户标签、生成随机数抽奖、社交需求。
+
+### 有序集合
+
+zset为有序（优先score排序，score相同则元素字典序），自动去重的集合数据类型，其底层实现为ziplis或者skiplist。
+
+ziplist编码的压缩列表对象使用压缩列表作为底层实现，每个集合元素使用紧挨在一起的压缩列表节点来保存，第一个节点保存元素的成员（member），而第二个元素则保存元素的分值（score）。
+
+压缩列表内集合元素按分值从小到大进行排序，分值较小的元素被放置在靠近表头的方向，而分值较大的元素则被放置在靠近表尾的方向。
+
+For example：
+
+![image-20220108200435022](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108200435022.png)
+
+**如果price键的值对象使用的是ziplist编码：**
+
+![image-20220108200531043](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108200531043.png)
+![image-20220108200552199](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220108200552199.png)
+
+**同时满足**以下两个条件采用ziplist存储：
+
+- 有序集合保存的元素数量小于默认值128个
+- 有序集合保存的所有元素的长度小于默认值64字节
+
+## 过期时间
+
+### 设置过期时间
+
+Redis有四种不同的命令可以用于设置键的生存时间（键可以存在多久）或过期时间(键什么时候会被删除)
+
+- EXPIRE<key><ttl>命令用于将键key得生存时间设置为ttl秒。
+- PEXPIRE<key><ttl>命令用于将键key的生存时间设置为ttl毫秒。
+- EXPIREAT<key><timestamp>命令用于将键key的过期时间设置为timestamp
+- PEXPIREAT<key><timestamp>命令用于将键key的过期时间设置为timestamp所指定的毫秒数时间戳。
+
+### 保存过期时间
+
+redisDB结构的expires字典保存了数据库中所有键的过期时间，我们称这个字典为过期字典：
+
+- 过期字典的键是一个指针，这个指针指向键空间的某一个键对象。
+- 过期字典的值是一个long long类型的整数，这个整数保存了键所指向的数据库键的过期时间——一个毫秒精度的UNIX 时间戳。
+
+```c++
+typedef struct redisDb{
+    //...
+    //过期字典，保存着键的过期时间
+    dict *expires;
+}redisDb;
+```
+
+![image-20220109001127957](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220109001127957.png)
+
+### 过期键删除策略
+
+**1.定时删除**
+
+对于每一个设置了过期时间的key都会创建一个定时器，一旦到达过期时间就会立即删除。
+
+该策略可以立即清除过期的数据，对内存较友好，但是缺点是占用了大量的CPU资源去处理过期的数据，会影响Redis的吞吐量和响应时间。
+
+**2.惰性删除**
+
+放任键过期不管，但是每次从键空间获取键时，都检查取得的键是否过期，如果过期的话，就删除该键，如果没有过期，则返回该键。
+
+该策略能最大限度地节省CPU资源。有一种极端的情况是可能出现大量的过期key没有被再次访问，因为不会被清除，导致占用了大量的内存。
+
+**3.定期删除**
+
+每隔一段时间，程序就对数据库进行一次检查，删除里面的过期键。至于要删除多少过期间，以及要检查多少个数据库，则由算法决定。
+
+#### 惰性删除策略的实现
+
+过期键的惰性删除策略由`db.c/expireIfNeeded`函数实现，所有读写数据库的Redis命令在执行之前都会调用`expireIfNeeded`函数对输入键进行检查：
+
+- 如果输入键已经过期，那么`expireIfNeeded`函数将输入键从数据库中删除。
+- 如果输入键未过期，那么`expireIfNeeded`函数不做动作。
+- ![image-20220109001831405](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220109001831405.png)
+
+#### 定期删除策略的实现
+
+过期键的定期删除策略由`redis.c/activeExpireCycle`函数实现，每当Redis的服务器周期性操作`redis.c/serverCron`函数执行时，activeExpireCycle函数就会被调用，它在规定的时间内，分多次遍历服务器中的各个数据库，从数据库的expires字典中**随机检查一部分键**的过期时间，并删除其中的过期键。
+
+### AOF、RDB和复制功能对过期键的处理
+
+#### 生成RDB文件
+
+已经过期的键不会被保存到新创建的RDB文件中。
+
+#### 载入RDB文件
+
+- **主服务器**： 未过期的键会被载入到数据库中，而过期键则会被忽略。
+- **从服务器**：文件中保存的所有键，不论是否过期，都会被载入到数据库中。
+
+### 内存淘汰策略
+
+是指内存达到**maxmemory**极限时，使用某种算法来决定清理掉哪些数据，以保证新数据的存入。
+
+- noeviction：当内存不足以容纳新写入数据时，新写入操作会报错
+- allkeys-lru：当内存不足以容纳新写入数据时，在键空间`(server.db[i].dict)`中，移除最近最少使用的key**（最常用）**
+
+- allkeys-random：当内存不足以容纳新写入数据时，在键空间（`server.db[i].dict`）中，随机移除某个 key。
+
+- volatile-lru：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，移除最近最少使用的 key。
+
+- volatile-random：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，随机移除某个 key。
+
+- volatile-ttl：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，有更早过期时间的 key 优先移除。
+
+==在配置文件中，通过maxmemory-policy可以配置要使用哪一个淘汰机制。==
+
+```c++
+int processCommand(client *c)
+{
+    ...
+    if (server.maxmemory) {
+        int retval = freeMemoryIfNeeded();  
+    }
+    ...
+}
+```
+
+**LRU实现原理**
+
+在淘汰key时，Redis默认最常用的是LRU算法（Latest Recently Used）。Redis通过在每一个redisObject保存lru属性来保存key最近的访问时间，在实现LRU算法时直接读取key的lru属性。
+
+具体实现时，Redis遍历每一个db，从每一个db中随机抽取一批样本key，默认是3个key，再从这3个key中，删除最近最少使用的key。
 
 ## RDB/AOF持久化
 
@@ -433,120 +671,7 @@ AOF重写的目的就是减小AOF文件的体积，不过值得注意的是：**
 
 Redis的内存回收主要分为过期删除策略和内存淘汰策略两部分。
 
-### 过期删除策略
 
-删除达到过期时间的key
-
-**1.定时删除**
-
-对于每一个设置了过期时间的key都会创建一个定时器，一旦到达过期时间就会立即删除。该策略可以立即清除过期的数据，对内存较友好，但是缺点是占用了大量的CPU资源去处理过期的数据，会影响Redis的吞吐量和响应时间。
-
-**2.惰性删除**
-
-当访问一个key时，才判断该key是否过期，过期则删除。该策略能最大限度地节省CPU资源。有一种极端的情况是可能出现大量的过期key没有被再次访问，因为不会被清除，导致占用了大量的内存。
-
-**3.定期删除**
-
-每隔一段时间，扫描Redis中过期key字典，并且清除部分过期的key。这是**折中方案。**
-
-*redisDb结构体定义*
-
-```c++
-typedef struct redisDb{
-    dict *dict; 	//键空间，保存所有键值对
-    dict *expires;	//保存所有过期的key
-    dict * blocking_keys;	
-    dict *ready_keys;
-    dict *watched_keys;
-    int id; 	//数据库ID字段，代表不同的数据库
-    long long avg_ttl; 
-}
-```
-
-**expires属性**
-
-它的类型也是字典，Redis会把所有的过期键值对加入到expires，之后再通过定期删除清理expires里面的值，加入expires的场景有：
-
-1. set指定过期时间expire
-
-如果设置key的时候指定了过期时间，Redis会将这个key直接加入到expires字典中并将超时时间设置到该字典元素。
-
-2. 调用expire命令
-
-显式指定某个key的过期时间
-
-3. 恢复或者修改数据
-
-从Redis持久化文件中恢复文件或者修改key，如果数据中的key已经设置过期时间，那么就将他加入expires
-
-**Redis清理过期key的时机**
-
-1. Redis在启动的时候，会注册两种事件，一种是时间事件，另一种是文件事件。
-
-在时间事件中，redis注册的回调函数是`serverCron`，在定时任务回调函数中，通过调用databasesCron清理部分过期key（*定期删除的实现*）
-
-```c++
-int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData)
-{
-    databasesCron();
-}
-```
-
-2. 每次访问key的时候，都会调用`expireIfNeeded`函数判断key是否过期，如果是，清理key*（惰性删除的实现）*
-
-```c++
-robj *lookupKeyRead(redisDb *db, robj *key){
-    robj *val;
-    expireIfNeeded(db, key);
-    val = lookupKey(db, key);
-    
-    return val;
-}
-```
-
-**删除key**
-
-Redis4.0以前，使用`del`指令删除，del会直接释放对象的内存。
-
-Redis4.0版本引入了`unlink`指令，能对删除操作进行‘懒’处理，将删除操作丢给后台线程，由后台线程来异步回收内存。
-
-==实际上，在判断key需要过期之后，真正删除key 的过程是先广播expire事件到从库和AOF文件中，然后根据Redis的配置决定立即删除还是异步删除。==
-
-如果是立即删除，Redis会立即释放key和value占用的的内存空间，否则，Redis会在另一个bio线程中释放需要延迟删除的空间。
-
-### 内存淘汰策略
-
-是指内存达到**maxmemory**极限时，使用某种算法来决定清理掉哪些数据，以保证新数据的存入。
-
-- noeviction：当内存不足以容纳新写入数据时，新写入操作会报错
-- allkeys-lru：当内存不足以容纳新写入数据时，在键空间`(server.db[i].dict)`中，移除最近最少使用的key**（最常用）**
-
-- allkeys-random：当内存不足以容纳新写入数据时，在键空间（`server.db[i].dict`）中，随机移除某个 key。
-
-- volatile-lru：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，移除最近最少使用的 key。
-
-- volatile-random：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，随机移除某个 key。
-
-- volatile-ttl：当内存不足以容纳新写入数据时，在设置了过期时间的键空间（`server.db[i].expires`）中，有更早过期时间的 key 优先移除。
-
-==在配置文件中，通过maxmemory-policy可以配置要使用哪一个淘汰机制。==
-
-```c++
-int processCommand(client *c)
-{
-    ...
-    if (server.maxmemory) {
-        int retval = freeMemoryIfNeeded();  
-    }
-    ...
-}
-```
-
-**LRU实现原理**
-
-在淘汰key时，Redis默认最常用的是LRU算法（Latest Recently Used）。Redis通过在每一个redisObject保存lru属性来保存key最近的访问时间，在实现LRU算法时直接读取key的lru属性。
-
-具体实现时，Redis遍历每一个db，从每一个db中随机抽取一批样本key，默认是3个key，再从这3个key中，删除最近最少使用的key。
 
 ## 三大缓存问题
 

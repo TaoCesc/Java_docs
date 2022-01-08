@@ -17,7 +17,7 @@ InnoDB的数据文件本身就是索引文件，在InnoDB中，表数据文件�
 | RIGHT JOIN | (外)右连接 | 关键字从右表（table2）返回所有的行，即使左表（table1）中没有匹配。如果左表中没有匹配，则结果为 NULL |
 | FULL JOIN  | (外)全连接 | 关键字只要左表（table1）和右表（table2）其中一个表中存在匹配，则返回行.(并集) |
 
-## InoDB和MyISAM的区别
+## InnoDB和MyISAM的区别
 
 #### 存储结构
 
