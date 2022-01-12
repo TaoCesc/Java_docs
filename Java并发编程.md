@@ -1,3 +1,218 @@
+## 线程状态转换
+
+![image-20220111214527184](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220111214527184.png)
+
+**新建（New）**
+
+创建后尚未启动。
+
+**可运行（Runnable）**
+
+可能正在运行，也可能正在等待CPU时间片。
+
+包含了操作系统线程状态中的运行（Running）和就绪（Ready）。
+
+**阻塞（Blocking）**
+
+这个状态下，是在多个线程有同步操作的场景，比如正在等待另一个线程的`synchronized`块的执行释放，或者可重入的synchronized块里别人调用wait（）方法，也就是线程在等待进入临界区。
+
+阻塞可以分为：等待阻塞，同步阻塞，其他阻塞
+
+**无限期等待（Waiting）**
+
+等待其他线程显式地唤醒，否则不会被分配CPU时间片。
+
+| 进入方法                                   | 退出方法                             |
+| :----------------------------------------- | :----------------------------------- |
+| 没有设置 Timeout 参数的 Object.wait() 方法 | Object.notify() / Object.notifyAll() |
+| 没有设置 Timeout 参数的 Thread.join() 方法 | 被调用的线程执行完毕                 |
+| LockSupport.park() 方法                    | -                                    |
+
+**限期等待（Timed Waiting）**
+
+无需等待其它线程显式地唤醒，在一定时间之后会被系统自动唤醒。
+
+
+
+
+
+调用 Thread.sleep() 方法使线程进入限期等待状态时，常常用 “**使一个线程睡眠**” 进行描述。
+
+调用 Object.wait() 方法使线程进入限期等待或者无限期等待时，常常用 “**挂起一个线程**” 进行描述。
+
+**睡眠和挂起**是用来描述**行为**，而**阻塞**和等待用来描述**状态**。
+
+阻塞和等待的区别在于，阻塞是被动的，它是在等待获取一个排它锁。而等待是主动的，通过调用 Thread.sleep() 和 Object.wait() 等方法进入。
+
+**死亡**
+
+线程因为run方法正常退出而自然死亡
+
+因为一个没有捕获地异常终止了run方法而意外死亡
+
+## 实现多线程的方式
+
+- 实现Runnable接口
+- 实现Callable接口
+- 继承Thread类
+- 实现Runnbale和Callable接口的类只能当作一个可以在线程中运行的任务，不是真正意义上的线程，因此最后还需要通过 Thread 来调用。可以说任务是通过线程驱动从而执行的。
+
+### 实现Runnbale接口
+
+需要实现`run()`方法
+
+通过Thread调用start（）方法来启动线程。
+
+```java
+public class MyRunnbale implements Runnable{
+    @Override
+    public void run(){
+        // ...
+    }
+}
+```
+
+```java
+public static void main(String[] args){
+    MyRunnable instance = new MyRunnable();
+    Thread thread = new Thread(instance);
+    thread.start();
+}
+```
+
+### 实现Callable接口
+
+与Runnable相比，Callable可以有返回值，返回值通过FutureTask进行封装
+
+```java
+public class MyCallable implements Callable<Integer>{
+    public Integer call(){
+        return 123;
+    }
+}
+```
+
+```java
+public static void main(String[] args){
+    MyCallable mc = new MyCallable();
+    FutureTask<Integer> ft = new FutureTask<>(mc);
+    Thread thread = new Thread(ft);
+    thead.start();
+    System.out.println(fc.get());
+}
+```
+
+### 继承Thread类
+
+同样需要实现run()方法，因为Thread类也实现了Runnable接口
+
+```java
+public class MyThead extends Thread{
+    @Override
+    public void run(){
+        //...
+    }
+}
+```
+
+```java
+public static void main(String[] args) {
+    MyThread mt = new MyThread();
+    mt.start();
+}
+```
+
+## 基础线程机制
+
+### Executor（线程池）
+
+Executor管理多个异步任务的执行，而无需显式地管理线程的生命周期。这里的异步是指多个任务的执行互不干扰，不需要进行同步操作。
+
+主要有三种Executor：
+
+- CachedThreadPool：一个任务创建一个线程。
+- FixedThreadPool：所有任务只能使用固定大小的线程。
+- SingleThreadExecutor：相当于为1的FixedThreadPool。
+
+```java
+public static void main(String[] args) {
+    ExecutorService executorService = Executors.newCachedThreadPool();
+    for (int i = 0; i < 5; i++) {
+        executorService.execute(new MyRunnable());
+    }
+    executorService.shutdown();
+}
+```
+
+### Daemon（守护线程）
+
+- User Thread(用户线程)
+- Daemon Thread（守护线程）
+
+用户线程即**运行在前台的线程**，而守护线程是**运行在后台的线程**。守护线程作用是为其他前台线程的运行提供便利服务，而且仅在普通、非守护线程仍然运行时才**需要**，比如**垃圾回收线程**就是一个守护线程。
+
+当 JVM 检测仅剩一个守护线程，而用户线程都已经退出运行时，JVM 就会退出。
+
+用户可以用Thread的`setDaemon(true)`方法设置当前线程为守护线程。
+
+==注意事项==：
+
+1. `setDaemon(true)`必须在调用线程的start（）方法之前设置，否则会出现`IllegalThreadStateException`异常。
+2. 在守护线程中产生的新线程也是守护线程。
+3. 守护线程中**不要执行逻辑操作或读写操作**。
+
+### Sleep()
+
+`Thread.sleep(millisec)`方法会休眠**当前正在执行的线程**。
+
+### yield()
+
+对静态方法`Thread.yield()`的调用声明了**当前线程已经完成了生命周期中最重要的部分**，可以切换给其它线程来执行。该方法只是对线程调度器的一个建议，而且也只是建议具有相同优先级的其它线程可以运行。
+
+### 线程阻塞
+
+线程可以阻塞于四种状态：
+
+- 当线程执行Thread.sleep()时，它一直阻塞到指定的毫秒时间之后，或者阻塞被另一个线程打断。
+- 当线程碰到一条wait（）语句时，它会一直阻塞到接到通知`notify()`、被终端或经过了指定毫秒时间为止。
+- 线程阻塞与不同 I/O 的方式有多种。常见的一种方式是 InputStream 的 read() 方法，该方法一直阻塞到从流中读取一个字节的数据为止，它可以无限阻塞，因此不能指定超时时间。
+- 线程也可以阻塞等待获取某个对象锁的排他性访问权限（即等待获得 synchronized 语句必须的锁时阻塞）。
+
+## 中断
+
+一个线程执行完毕之后会自动结束，如果在运行过程中发生异常也会提前结束。
+
+### InterruptedException
+
+通过调用一个线程的`interrupt()`来中断该线程，如果该线程处于**阻塞、限期等待或者无限期等待**状态，那么就会抛出 InterruptedException，从而提前结束该线程。但是不能中断 I/O 阻塞和 synchronized 锁阻塞。
+
+在 main() 中启动一个线程之后再中断它，由于线程中调用了 Thread.sleep() 方法，因此会抛出一个 InterruptedException，从而提前结束线程，不执行之后的语句。
+
+```java
+public class InterruptExample {
+
+    private static class MyThread1 extends Thread {
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(2000);
+                System.out.println("Thread run");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+public static void main(String[] args) throws InterruptedException {
+    Thread thread1 = new MyThread1();
+    thread1.start();
+    thread1.interrupt();
+    System.out.println("Main run");
+}
+```
+
+### interrupted()
+
 ## volatile
 
 Java线程安全（volatile & synchronized）
@@ -10,6 +225,44 @@ Java线程安全（volatile & synchronized）
 保证了共享变量的可见性，可见性 就是在一个线程修改一个共享变量的时候，另一个线程可以看到修改后的值
 
 线程对 volatile 变量的修改会立刻被其他 线程所感知，即不会出现数据脏读的现象，从而保证数据的“可见性”
+
+### 内存屏障指令
+
+内存屏障指令是一组处理指令，用来限制内存操作的顺序。
+
+volatile变量写，汇编指令会多出`Lock前缀`:
+
+- 将当前处理器缓存行的数据写回主存。
+- 令其他CPU里缓存该内存地址的数据无效。
+
+**针对编译器重排序**：JMM针对编译器指定了`volatile重排序规则表`:
+
+![image-20220112140511744](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112140511744.png)
+
+**针对处理器重排序**：编译器在生成字节码指令时，通过在指令序列中`插入内存屏障指令`来禁止特定类型的处理器重排序： **volatile底层通过内存屏障指令实现**
+
+![image-20220112140739982](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112140739982.png)
+
+- 在每个**volatile变量写**操作之前插入StoreStore屏障，之后插入StoreLoad屏障：
+  - 之前插入StoreStore屏障：禁止volatile写之前的写操作与其重排序，保证之前的所有写操作都写回主存，对volatile写可见。
+  - 之后插入StoreLoad屏障：禁止volatile写之后的读写操作与其重排序，实现volatile写结果对后续操作可见；
+- 在每个volatile变量读操作之后，接连插入LoadLoad屏障，LoadStore屏障；
+  - 插入LoadLoad屏障：禁止**volatile**变量读之后的读操作与其重排序；
+  - 插入LoadStore屏障：禁止**volatile**变量读之后的写操作与其重排序；
+  - 通过插入两次内存屏障，实现volatile读结果对后续操作可见；
+
+**volatile**用来修饰共享变量（成员变量，static变量）表明：
+
+- volatile变量写：当写一个**volatile**变量时，JMM会把所有线程本地内存的对应变量副本刷新回主存；
+
+- - **volatile**写和解锁内存语义相同；
+
+- volatile变量读：当读一个**volatile**变量时，JMM会设置该线程的volatile变量副本（本地内存中）无效，线程只能从主存中读取该变量；
+
+- - 保证了volatile变量读，总能看见对该volatile变量最后的修改；
+  - **volatile**变量读和加锁内存语义相同；
+
+通过上述机制，**volatile**保证共享变量一旦被修改，新值对所有线程可见；
 
 ## 进程、线程的区别
 
@@ -69,31 +322,31 @@ public synchronized void add(){
 
 此时，synchronized加锁的对象就是这个方法所在实例的本身。
 
-### 修饰静态方法
+### 同步静态方法
 
 synchronized修饰静态方法的使用与实例方法并无差别，在静态方法上加上synchronized关键字即可
 
 ```java
-public static synchronized void add(){
+public static synchronized void func(){
        i++;
 }
 ```
 
 此时，synchronized加锁的对象为当前静态方法所在类的Class对象。
 
-### 修饰代码块
+### 同步代码块
 
 synchronized修饰代码块需要传入一个对象。指定一个加锁的对象，**给对象加锁**
 
 ```java
-public void add(f) {
+public void func() {
     synchronized (this) {
         i++;
     }
 }
 ```
 
-
+它
 
 ### Java对象头和Monitor对象
 
@@ -336,6 +589,10 @@ addWaiter()：将当前线程插入至队尾，返回在等待队列中的节点
 
 ## Reentrantlock
 
+重入锁（ReentrantLock）是一种递归无阻塞的同步机制。
+
+ReentrantLock 是 java.util.concurrent（J.U.C）包中的锁
+
 ### ReentrantLock使用
 
 ReentrantLock是一种显式锁，需要我们**手动编写加锁和释放锁**的代码。
@@ -554,5 +811,46 @@ newCachedThreadPool()
 newScheduledThreadPool(int corePoolSize)
 ```
 
-## 
+## Java内存模型（JMM）
 
+Java 内存模型试图屏蔽各种硬件和操作系统的内存访问差异，以实现让 Java 程序在各种平台下都能达到一致的内存访问效果。
+
+### 主内存与工作内存
+
+处理器上的寄存器的读写的速度比内存快几个数量级，为了解决这种速度矛盾，在它们之间加入了高速缓存。
+
+![image-20220112001213961](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112001213961.png)
+
+加入高速缓存带来了一个新的问题：缓存一致性。如果多个缓存共享同一块主内存区域，那么多个缓存的数据可能会不一致，需要一些协议来解决这个问题。
+
+所有的变量都存储在**主内存**中，每个线程还有自己的**工作内存**，工作内存存储在**高速缓存或者寄存器**中，保存了该线程使用的变量的主内存副本拷贝。
+
+线程只能直接操作工作内存中的变量，不同线程之间的变量值传递需要通过主内存来完成。
+
+![image-20220112001300651](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112001300651.png)
+
+### 内存间交互操作
+
+Java 内存模型定义了 8 个操作来完成主内存和工作内存的交互操作。
+
+![image-20220112001405260](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112001405260.png)
+
+- read：把一个变量的值从主内存传输到工作内存中
+- load：在read之后执行，把read得到的值放入工作内存的变量副本中
+- use：把工作内存中的变量的值传递给执行引擎
+- assgin：把一个从执行引擎接收到的值赋给工作内存中的变量
+- store：把工作内存中的一个变量的值传送到主内存中
+- write：在store之后执行，把store得到的值放入主内存的变量中
+- lock：作用于主内存的变量，把一个变量标识为一条线程独占状态
+- unlock：作用于主内存变量，把一个处于锁定状态的变量释放出来，释放后的变量才可以被其他线程锁定
+
+如果要把一个变量从主内存中复制到工作内存，就需要按顺寻地执行 **read 和 load** 操作，如果把变量从工作内存中同步回主内存中，就要按顺序地执行 **store 和 write** 操作。Java内存模型只要求上述操作必须按顺序执行，而没有保证必须是连续执行。也就是 read 和 load 之间，store 和 write 之间是可以插入其他指令的，如对主内存中的变量a、b进行访问时，可能的顺序是read a，read b，load b， load a。
+
+### 重排序和happen-before规则
+
+![image-20220112132752330](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220112132752330.png)
+
+- **编译器重排序**：编译器保证不改变单线程执行结果的前提下，可以调整多线程语句执行顺序。
+- **处理器重排序**：如果不存在数据依赖性，处理器可以改变语句对应机器指令的执行顺序。
+
+**JMM通过happen-before规则，底层禁止特定类型的编译器重排序和处理器重排序，保证内存的可见性和有序性**

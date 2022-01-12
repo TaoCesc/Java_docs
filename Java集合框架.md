@@ -235,6 +235,85 @@ private void add(E e, Object[] elementData, int s){
 - `elementData[size++] e`， Java 8中直接使用`size`定位并赋值，然后通过`size++`自增。
 - `elementData[s] = e; size = s + 1`，Java 11 借助临时变量`s`定位并赋值，然后通过`size = s + 1`给`size`赋新值
 
+## Vector
+
+### 同步
+
+与ArrayList类似，但是使用了`synchronized`进行同步
+
+```java
+public synchronized boolean add(E e) {
+    modCount++;
+    ensureCapacityHelper(elementCount + 1);
+    elementData[elementCount++] = e;
+    return true;
+} 
+
+public synchronized E get(int index) {
+        if (index >= elementCount)
+            throw new ArrayIndexOutOfBoundsException(index);
+
+        return elementData(index);
+}
+```
+
+### ArrayList与Vector的比较
+
+- Vector是同步的，因此开销就比ArrayList要大，访问速度更慢。
+- Vector每次扩容请求其大小的2倍空间，而ArrayList是1.5倍。
+
+### Vector替代方法
+
+**synchronizedList**
+
+为了获得线程安全的ArrayList，可以使用`Collections.synchronizedList()`得到一个线程安全的ArrayList。
+
+```java
+List<String> list = new ArrayList<>();
+List<String> synList = Collections.synchroziedList(list);
+```
+
+**CopyOnWriteArrayList**
+
+CopyOnWrite容器即写时复制的容器。**当我们往一个容器添加元素的时候，不直接往当前容器添加，而是先将当前容器进行 Copy，复制出一个新的容器，然后新的容器里添加元素，添加完元素之后，再将原容器的引用指向新的容器**。
+
+这样做的好处是我们可以对 CopyOnWrite 容器进行并发的读，而不需要加锁，因为当前容器不会添加任何元素。所以 CopyOnWrite 容器也是一种**读写分离**的思想，读和写不同的容器。
+
+```java
+public boolean add(E e) {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            Object[] elements = getArray();
+            int len = elements.length;
+            Object[] newElements = Arrays.copyOf(elements, len + 1);
+            newElements[len] = e;
+            setArray(newElements);
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+```
+
+读的时候不需要加锁，如果读的时候有多个线程正在向ArrayLIst添加数据，读还是会读到旧的数据，因为写的时候不会锁住旧的ArrayList。
+
+```java
+public E get(int index) {
+    return get(getArray(), index);
+}
+```
+
+CopyOnWrite的缺点
+
+**内存占用问题**
+
+- 写时复制机制，所以在进行写操作的时候，内存里会同时驻扎两个对象的内存，旧的对象和新写入的对象。那么这个时候很有可能造成频繁的 Yong GC 和 Full GC。
+
+**数据一致性问题**
+
+- CopyOnWrite 容器只能保证数据的最终一致性，不能保证数据的实时一致性。
+
 ## LinkedList
 
 ### LinkedList的底层实现
@@ -381,6 +460,12 @@ E unlink(Node<E> x){
 
 ## HashMap
 
+1. 了解底层如何存储数据的
+2. HashMap的几个主要方法
+3. HashMap时如何确定元素存储位置的以及如果处理哈希冲突的
+4. HashMap扩容机制是怎么样的
+5. JDK1.8在扩容和解决哈希冲突上对HashMap源码做了哪些改动？有什么好处
+
 ### HashMap底层实现
 
 **关键变量**
@@ -488,6 +573,8 @@ int 类型占 32 位，可以表示 2^32 种数（范围：-2^31 到 2^31-1）�
 为了减少这种冲突，HashMap 中让 hashCode 的高位也参与了寻址计算（进行扰动），即把 hashCode 高 16 位与 hashCode 进行异或算出 hash，然后根据 hash 来做寻址。
 
 ### HashMap的put操作
+
+![image-20220111190618268](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220111190618268.png)
 
 ```java
 public V put(K key, V value){
@@ -624,7 +711,7 @@ final Node<K,V> getNode(int hash, Object key){
 **/
 ```
 
-### HashMap的resize（）
+### HashMap的扩容机制
 
 ```java
 final Node<K,V>[] resize(){
@@ -753,7 +840,7 @@ final Node<K,V>[] resize(){
 [(1条消息) HashMap 在扩容时为什么通过位运算 (e.hash & oldCap) 得到新数组下标_Luke.Du的博客-CSDN博客](https://blog.csdn.net/qq_45369827/article/details/114960370)
 
 1. HashMap计算key所对应数组下标的公式是`(length - 1) & hash`，这个公式等价于`hash % length`(当length是2的n次幂)
-2. 如下图，`hash % length`的结果只取决于小于数组长度的部分，这个key的hash值得低四位就是当前所在数组的下标。扩容后 新数组长度 = 旧数组长度 * 2，也就是左移 1 位，而此时 hash % length 的结果只取决于 hash 值的低五位，前后两者之间的**差别就差在了第五位**上。
+2. 如下图，`hash % length`的结果只取决于小于数组长度的部分，这个key的hash值的低四位就是当前所在数组的下标。扩容后 新数组长度 = 旧数组长度 * 2，也就是左移 1 位，而此时 hash % length 的结果只取决于 hash 值的低五位，前后两者之间的**差别就差在了第五位**上。
 
 ![image-20211123183145042](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20211123183145042.png)
 
@@ -809,6 +896,22 @@ static final int tableSizeFor(int cap){
 | 位或操作 | 11111111 \| 00000000 | 11111111   |
 
 ## ConcurrentHashMap
+
+![image-20220111192531120](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220111192531120.png)
+
+### 存储结构
+
+ConcurrentHashMap采用“分段锁“策略，ConcurrentHashMap的主干是一个Segment数组。
+
+```java
+final Segment<K, V>[] segments;
+```
+
+Segment继承了`ReentrantLock`，它是一种可重入锁。在ConcurrentHashMap，一个Segment就是一个子哈希表，Segment里**维护了一个HashEntry数组**，并发环境下，对于不同 Segment 的数据进行操作是不用考虑锁竞争的。
+
+**所以，对于同一个 Segment 的操作才需考虑线程同步，不同的 Segment 则无需考虑。**
+
+一个 ConcurrentHashMap 维护一个 Segment 数组，一个 Segment 维护一个 HashEntry 数组。
 
 ### ConcurrentHashMap底层实现
 
@@ -939,7 +1042,7 @@ else if((fh == f.hash) == MOVED) //MOVED = -1
     tab = helpTransfer(tab, f)
 ```
 
-### ConcurrentHashMap怎么获取size
+### 获取size
 
 [ConcurrentHashMap 1.8 计算 size 的方式 - 简书 (jianshu.com)](https://www.jianshu.com/p/971ee45597ac)
 
@@ -999,3 +1102,30 @@ static class Node<K,V> implements Map.Entry<K,V> {
 ```
 
 - 数组用volatile修饰主要是保证在数组扩容的时候保证可见性。
+
+## 容器中的设计模式
+
+### 迭代器模式
+
+![image-20220111200417969](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220111200417969.png)
+
+Collection实现了Iterable接口，其中的`iterator()`方法能够产生一个Iterator对象，通过这个对象就可以迭代遍历Collection中的元素。
+
+```java
+List<String> list = new ArrayList<>();
+list.add("a");
+list.add("b");
+for (String item : list) {
+    System.out.println(item);
+}
+```
+
+### 适配器模式
+
+`java.util.Arrays.asList()`可以把数组类型转成List类型
+
+```java
+Integer[] arr = {1, 2, 3};
+List list = Arrays.asList(arr);
+```
+
