@@ -1,4 +1,4 @@
-## Spring是什么？有什么特点
+## 1. Spring是什么？有什么特点
 
 1. 方便解耦，简化开发：Spring就是一个大工厂，可以将所有对象的创建和依赖关系的维护，交给Spring管理。
 2. AOP编程的支持：Spring提供面向切面编程，可以方便的实现对程序进行权限拦截、运行监控等功能。
@@ -9,7 +9,7 @@
 
 6. 降低JavaEE API的使用难度：Spring对JavaEE开发中非常难用的一些API（JDBC、JavaMail、远程调用等），都提供了封装，使这些API应用难度大大降低。
 
-## Spring的模块组成
+## 2. Spring的模块组成
 
 1. Spring core: 提供了框架的基本组成部分，包括控制反转（IOC）和依赖注入（DI）功能。
 2. spring beans： 提供了BeanFactory，是工厂模式的一个经典实现，Spring将管理对象称为Bean
@@ -20,13 +20,7 @@
 
 7. spring test：主要为测试提供支持的，支持使用JUnit或TestNG对Spring组件进行单元测试和集成测试。
 
-
-
-
-
-
-
-## 控制反转（IOC）和依赖注入（DI）
+## 3. 控制反转（IOC）和依赖注入（DI）
 
 控制反转是一种依赖倒置原则的代码设计的思路，它主要采用依赖注入的方式来实现。
 
@@ -189,7 +183,19 @@ public class MyTest {
 
 **由此能够得到一些信息：“注册进applicationContext.xml中的bean，无论你调用与否，他都会被初始化”**
 
-##  AOP编程
+## 4. Spring IOC初始化过程
+
+[(1条消息) 2 IOC容器初始化过程_惟愿无事-CSDN博客_ioc容器初始化的流程](https://blog.csdn.net/u010723709/article/details/47046211)
+
+![image-20220113141008534](https://cdn.jsdelivr.net/gh/TaoCesc/blogImages/imgs/image-20220113141008534.png)
+
+IOC容器的初始化分为三个过程实现：
+
+- **Resource资源定位**。这个Resource指的是BeanDefinition的资源定位。这个过程就是容器找数据的过程。
+- **BeanDefinition载入过程**。这个载入过程就是把用户定义好的Bean表示成IOC容器内部的数据结构，而这个容器内部的数据结构就是BeanDefinition。
+- **向IOC容器注册BeanDefinition**。这个过程就是将前面的BeanDefition保存到HashMap中的过程。
+
+##  5. AOP编程
 
 面向切面编程，通过预编译方式和运行期间动态代理实现程序功能的统一维护的一种技术。
 
@@ -470,11 +476,6 @@ public class UserServiceImpl implements UserService{
 ```
 
 写一个前置通知，这个通知类只做一件事情：“在我们调用接口实现类中的方法时 打印当前时间和调用的方法名”
-
-```java
-```
-
-
 
 ## BeanFactory 和 ApplicationContext 的不同点
 

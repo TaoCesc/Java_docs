@@ -376,6 +376,12 @@ StringBuffer是**可变类**，和**线程安全**的字符串操作类，任何
 
 StringBuilder是**可变类**，和**线程不安全**的字符串操作类，任何对它指向的字符串的操作都不会产生新的对象。每个StringBuilder对象都有一定的缓冲区容量，当字符串大小没有超过容量时，不会分配新的容量，当字符串大小超过容量时，会自动增加容量。
 
+### StringBuffer和StringBuilder区别
+
+**StringBuffer**： 线程不安全，执行速度快
+
+**StringBuffer**： 线程安全，执行速度慢
+
 ### StringBuffer和StringBuilder的初始容量及扩容
 
 StringBuffer和StringBuilder初始的空闲容量都是16

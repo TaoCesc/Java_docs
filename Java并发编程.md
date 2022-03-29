@@ -466,126 +466,13 @@ public class com.zhangpan.text.TestSync {
 6. 轻量级锁抢锁失败，JVM会使用自旋锁，不断地重试，尝试抢锁。
 7. 自旋锁重试之后如果抢锁依然失败，同步锁会升级到重量级锁，锁标志位改为10。在这个状态下，未抢到锁的线程都会被阻塞。
 
-## AQS源码
+## AQS
 
-[AQS源码详细解读 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/65349219)
+**AbstactQueuedSynchronizer**, 队列同步器，它是构建锁或者其他同步组件的基础框架（如ReeantrantLock、ReentrantReadWriteLock、Semaphore等）
 
-```
-AbstractQueuedSynchronizer  //队列同步器
-```
+AQS的主要使用方式是继承，子类通过继承同步器并实现它的抽象方法来管理同步状态。
 
-使用锁时，线程获取锁是一种**悲观锁策略**，即假设每一次执行临界区代码都会产生冲突，所以当前线程获取到锁的时候同时也会阻塞其他线程获取该锁。 而CAS操作（又称为无锁操作）是一种**乐观锁策略**，它假设所有线程访问共享资源的时候不会出现冲突。
-
-###  成员变量
-
-```java
-private volatile int state;
-
-//设置期望值，想修改的值，通过CAS操作实现
-protected final boolean compareAndSetState(int expect, int update){
-    return unsafe.compareAndSwapInt(this, stateOffset,expect, update);
-}
-//维护了等待队列（也叫CHL队列，同步队列）的头节点和尾节点
-private transient volatile Node head;
-private transient volatile Node tail;
-//CHL队列由链表实现，以自旋的方式获取资源，是可阻塞的先进先出的双向队列，通过自旋和CAS操作保证节点插入和移除的原子性，当有线程获取锁失败，就被添加到队列==末尾==
-```
-
-### 内部类Node
-
-AQS的工作模式分为独占模式和共享模式，记录在节点的信息中。
-
-一般地，它的实现类只实现一种模式，ReentrantLock就实现了独占模式；但也有例外，ReentrantReadAndWriteLock实现了独占模式和共享模式。
-
-```java
-//当前节点处于共享模式的标记
-static final Node SHARED = new Node();
-//当前节点处于独占模式的标记
-static final Node EXCLUSIVE  = null;
-//线程被取消了
-static final int CANCELLED =  1;
-//释放资源后需唤醒后继节点
-static final int SIGNAL    = -1;
-//等待condition唤醒
-static final int CONDITION = -2;
-//工作于共享锁状态，需要向后传播，
-//比如根据资源是否剩余，唤醒后继节点
-static final int PROPAGATE = -3;
-
-//等待状态，有1,0,-1,-2,-3五个值。分别对应上面的值
-volatile int waitStatus;
-
-//前驱节点
-volatile Node prev;
-
-//后继节点
-volatile Node next;
-
-//等待锁的线程
-volatile Thread thread;
-
-//等待条件的下一个节点，ConditonObject中用到
-Node nextWaiter;
-```
-
-### 获取资源（锁）
-
-获取释放资源是对state变量的修改，
-
-获取锁的方法有**acquire(),acquiredShared()**.
-
-- acquire()独占模式获取资源，忽略中断
-
-```java
-public final void acquire(int arg){
-    if(!tryAcquire(arg) && 
-      //让线程处于一种自旋状态
-      //尝试让该线程重新获取锁！ 当条件满足获取到了锁可以从自旋过程中退出，否则继续
-      acquireQueued(addWait(Node.EXCULSIVE), arg))
-      selfInterrrupt();
-}
-```
-
-addWaiter()：将当前线程插入至队尾，返回在等待队列中的节点（就是处理了它的前驱后继）
-
-```java
-  private Node addWaiter(Node mode) {
-        //把当前线程封装为node,指定资源访问模式
-        Node node = new Node(Thread.currentThread(), mode);
-        // Try the fast path of enq; backup to full enq on failure
-        Node pred = tail;
-        //如果tail不为空,把node插入末尾
-        if (pred != null) {
-            node.prev = pred;
-            //此时可能有其他线程插入,所以使用CAS重新判断tail
-            if (compareAndSetTail(pred, node)) {
-                pred.next = node;
-                return node;
-            }
-        }
-        //如果tail为空，说明队列还没有初始化，执行enq()
-        enq(node);
-        return node;
-    }
-```
-
-### CAS的操作过程
-
-**V 内存地址存放的实际值； O 预期的值（旧值）；N 更新的新值**
-
-当V和O相同时，也就是说旧值和内存中实际的值相同表明该值没有被其他线程更改过，即该旧值O就是目前来说最新的值了，自然而然可以将新值N赋值给V。
-
-### 存在的问题
-
-#### ABA问题
-
-解决方案可以宴席数据库中常用的乐观锁方式，添加一个版本号
-
-#### 自旋时间过长
-
-使用CAS时非阻塞同步，也就是说不会将线程挂起，会自旋进行下一次尝试，如果自旋时间过长对性能有很大的消耗。
-
-#### 只能保证一个共享变量的原子操作
+AQS使用int类型的成员变量**state**来获取同步状态，当`state > 0`时表示已经获取了锁，当`state = 0`时表示释放了锁。提供三种方法（`getSa`
 
 ## Reentrantlock
 
